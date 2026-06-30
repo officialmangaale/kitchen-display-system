@@ -11,24 +11,23 @@ export default function OrderCard({
   clock, // unused but triggers re-render
 }) {
   if (!order) return null;
+  void clock;
 
-  const isLate = isOrderLate(order.placedAt, order.slaMinutes);
+  const isLate = isOrderLate(order);
   const actions = STATUS_ACTIONS[order.status];
-  const isServed = order.status === 'SERVED';
   
   // Clean primary button texts
   const getPrimaryLabel = (status) => {
-    if (status === 'NEW') return 'ACCEPT';
-    if (status === 'ACCEPTED') return 'START COOKING';
+    if (status === 'CONFIRMED') return 'ACCEPT';
     if (status === 'PREPARING') return 'MARK READY';
-    if (status === 'READY') return 'SERVED';
+    if (status === 'READY') return 'COMPLETE';
     return 'ACTION';
   };
 
   return (
     <article
       className={`order-card order-card--${(order.status || 'new').toLowerCase()} ${
-        isLate && !isServed ? 'order-card--late' : ''
+        isLate ? 'order-card--late' : ''
       }`}
       aria-label={`Order ${order.number || order.id}`}
     >
@@ -40,9 +39,12 @@ export default function OrderCard({
         <div className="order-card__type">
           {order.table ? `Table ${order.table}` : <><Utensils size={18}/> Takeaway</>}
         </div>
-        {!isServed && (
-          <TimerBadge placedAt={order.placedAt} slaMinutes={order.slaMinutes} />
-        )}
+        <TimerBadge
+          placedAt={order.placedAt}
+          slaMinutes={order.slaMinutes}
+          stoppedAt={order.timerStoppedAt}
+          status={order.status}
+        />
       </div>
 
       {/* Items */}
@@ -82,41 +84,28 @@ export default function OrderCard({
       )}
 
       {/* Actions */}
-      {!isServed && (
-        <div className="order-actions">
-          {actions?.primary && (
-            <button
-              className="btn-massive btn-massive--primary"
-              onClick={() => onStatusChange(order.id, actions.primary.next)}
-              disabled={isUpdating}
-            >
-              {isUpdating ? <Loader2 size={24} className="spin" /> : getPrimaryLabel(order.status)}
-            </button>
-          )}
+      <div className="order-actions">
+        {actions?.primary && (
+          <button
+            className="btn-massive btn-massive--primary"
+            onClick={() => onStatusChange(order.id, actions.primary.next)}
+            disabled={isUpdating}
+          >
+            {isUpdating ? <Loader2 size={24} className="spin" /> : getPrimaryLabel(order.status)}
+          </button>
+        )}
 
-          {/* Show secondary actions ONLY for NEW to start directly, otherwise just note */}
-          <div className="order-actions__secondary">
-             {order.status === 'NEW' && actions?.secondary?.map((sec) => (
-              <button
-                key={sec.next}
-                className="btn-secondary"
-                onClick={() => onStatusChange(order.id, sec.next)}
-                disabled={isUpdating}
-              >
-                Start Directly
-              </button>
-            ))}
-            <button
-              className="btn-secondary btn-secondary--note"
-              onClick={() => onAddNote(order)}
-              disabled={isUpdating}
-            >
-              <StickyNote size={18} />
-              Add Note
-            </button>
-          </div>
+        <div className="order-actions__secondary">
+          <button
+            className="btn-secondary btn-secondary--note"
+            onClick={() => onAddNote(order)}
+            disabled={isUpdating}
+          >
+            <StickyNote size={18} />
+            Add Note
+          </button>
         </div>
-      )}
+      </div>
     </article>
   );
 }

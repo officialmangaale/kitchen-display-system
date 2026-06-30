@@ -49,7 +49,7 @@ export async function getOrders({ token, stationId }) {
   }
   const data = await request(path, { token });
   const orders = Array.isArray(data) ? data : data?.orders || [];
-  return orders.map(normalizeOrder);
+  return orders.map(normalizeOrder).filter(Boolean);
 }
 
 /**

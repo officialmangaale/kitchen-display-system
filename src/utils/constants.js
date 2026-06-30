@@ -5,15 +5,23 @@ export const TOKEN_KEY = 'jwt_token';
 export const USER_ROLE_KEY = 'user_role';
 export const USER_NAME_KEY = 'user_name';
 
-export const STATUSES = ['NEW', 'ACCEPTED', 'PREPARING', 'READY', 'SERVED'];
+export const ACTIVE_STATUSES = ['CONFIRMED', 'PREPARING', 'READY'];
+export const TERMINAL_STATUSES = [
+  'COMPLETED',
+  'CANCELLED',
+  'CANCELED',
+  'REJECTED',
+  'DECLINED',
+  'FAILED',
+  'EXPIRED',
+  'DELIVERED',
+  'DONE',
+];
+export const STATUSES = [...ACTIVE_STATUSES, ...TERMINAL_STATUSES];
 
 export const STATUS_ACTIONS = {
-  NEW: {
-    primary: { next: 'ACCEPTED', label: 'Accept Order' },
-    secondary: [{ next: 'PREPARING', label: 'Start Directly' }],
-  },
-  ACCEPTED: {
-    primary: { next: 'PREPARING', label: 'Start Cooking' },
+  CONFIRMED: {
+    primary: { next: 'PREPARING', label: 'Accept' },
     secondary: [],
   },
   PREPARING: {
@@ -21,21 +29,20 @@ export const STATUS_ACTIONS = {
     secondary: [],
   },
   READY: {
-    primary: { next: 'SERVED', label: 'Served' },
+    primary: { next: 'COMPLETED', label: 'Complete' },
     secondary: [],
   },
-  SERVED: {
+  COMPLETED: {
     primary: null,
     secondary: [],
   },
 };
 
 export const STATUS_COLORS = {
-  NEW: 'var(--primary)',
-  ACCEPTED: 'var(--accent)',
+  CONFIRMED: 'var(--primary)',
   PREPARING: 'var(--info)',
   READY: 'var(--success)',
-  SERVED: 'var(--muted)',
+  COMPLETED: 'var(--muted)',
 };
 
 export const PRIORITY_COLORS = {

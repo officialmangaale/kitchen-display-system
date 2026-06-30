@@ -14,7 +14,7 @@ import ErrorBanner from './ErrorBanner';
 import ToastHost from './ToastHost';
 import AddNoteModal from './AddNoteModal';
 import FullscreenTip from './FullscreenTip';
-import { isOrderLate } from '../utils/orderUtils';
+import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
 
 export default function KDSDashboard({ token, onLogout }) {
   const clock = useClock(30000);
@@ -67,7 +67,8 @@ export default function KDSDashboard({ token, onLogout }) {
   const sseCallbacks = {
     onConnected: useCallback(() => {
       setConnectionStatus('connected');
-    }, []),
+      refresh();
+    }, [refresh]),
     onOrderNew: useCallback(
       (order) => {
         upsertOrder(order);
@@ -94,6 +95,12 @@ export default function KDSDashboard({ token, onLogout }) {
 
   useKDSStream(token, sseCallbacks);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
@@ -115,13 +122,7 @@ export default function KDSDashboard({ token, onLogout }) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [toggleFullscreen]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
-  }, [refresh]);
+  }, [handleRefresh, toggleFullscreen]);
 
   const handleStatusChange = useCallback(
     (orderId, status) => {
@@ -141,9 +142,9 @@ export default function KDSDashboard({ token, onLogout }) {
     [addNote]
   );
 
-  // Filter visible orders locally (Station + Status + NOT Served)
+  // Filter visible orders locally (Station + Status).
   const visibleOrders = orders.filter((o) => {
-    if (o.status === 'SERVED') return false;
+    if (!isActiveKDSStatus(o.status)) return false;
 
     // Station Filter
     if (stationId !== 'all') {
@@ -151,10 +152,10 @@ export default function KDSDashboard({ token, onLogout }) {
     }
 
     // Status Filter
-    if (statusFilter === 'new' && o.status !== 'NEW') return false;
-    if (statusFilter === 'cooking' && o.status !== 'ACCEPTED' && o.status !== 'PREPARING') return false;
+    if (statusFilter === 'new' && o.status !== 'CONFIRMED') return false;
+    if (statusFilter === 'cooking' && o.status !== 'PREPARING') return false;
     if (statusFilter === 'ready' && o.status !== 'READY') return false;
-    if (statusFilter === 'late' && !isOrderLate(o.placedAt, o.slaMinutes)) return false;
+    if (statusFilter === 'late' && !isOrderLate(o)) return false;
 
     return true;
   });

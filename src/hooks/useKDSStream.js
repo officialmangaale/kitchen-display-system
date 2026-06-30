@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { BASE_URL } from '../utils/constants';
-import { normalizeOrder } from '../utils/orderUtils';
+import { isActiveKDSStatus, isTerminalKDSStatus, normalizeOrder } from '../utils/orderUtils';
 import { playNewOrderSound } from '../utils/sound';
 
 /**
@@ -12,7 +12,10 @@ import { playNewOrderSound } from '../utils/sound';
 export function useKDSStream(token, callbacks) {
   const esRef = useRef(null);
   const callbacksRef = useRef(callbacks);
-  callbacksRef.current = callbacks;
+
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
 
   const connect = useCallback(() => {
     if (!token) return;
@@ -38,7 +41,7 @@ export function useKDSStream(token, callbacks) {
     es.addEventListener('order:new', (e) => {
       try {
         const order = normalizeOrder(JSON.parse(e.data));
-        if (order) {
+        if (order && isActiveKDSStatus(order.status)) {
           callbacksRef.current.onOrderNew?.(order);
           playNewOrderSound();
           callbacksRef.current.addToast?.(
@@ -54,7 +57,9 @@ export function useKDSStream(token, callbacks) {
     es.addEventListener('order:update', (e) => {
       try {
         const order = normalizeOrder(JSON.parse(e.data));
-        if (order) {
+        if (order && isTerminalKDSStatus(order.status)) {
+          callbacksRef.current.onOrderDelete?.(order.id);
+        } else if (order && isActiveKDSStatus(order.status)) {
           callbacksRef.current.onOrderUpdate?.(order);
         }
       } catch {

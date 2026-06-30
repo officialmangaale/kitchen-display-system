@@ -1,6 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getOrders, updateOrderStatus, addKitchenNote } from '../api/kdsApi';
-import { normalizeOrder, sortOrders } from '../utils/orderUtils';
+import {
+  isActiveKDSStatus,
+  isTerminalKDSStatus,
+  normalizeOrder,
+  orderKey,
+  sortOrders,
+} from '../utils/orderUtils';
 import { TOKEN_KEY } from '../utils/constants';
 
 /**
@@ -40,7 +46,6 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
       }
       if (err.status === 409) {
         addToast?.('Order was updated elsewhere. Refreshing…', 'warning');
-        loadOrders();
         return;
       }
       if (err.status === 400 && err.code === 'INVALID_STATUS_TRANSITION') {
@@ -63,7 +68,9 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
         if (!mountedRef.current) return;
 
         const map = new Map();
-        orders.forEach((o) => map.set(o.id, o));
+        orders
+          .filter((o) => isActiveKDSStatus(o.status))
+          .forEach((o) => map.set(o.id, o));
         setOrdersMap(map);
       } catch (err) {
         if (!mountedRef.current) return;
@@ -78,15 +85,22 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
 
   // Load orders on mount and when station changes
   useEffect(() => {
-    loadOrders();
+    const timer = window.setTimeout(() => {
+      loadOrders();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadOrders]);
 
   const upsertOrder = useCallback((order) => {
-    if (!order?.id) return;
     const normalized = normalizeOrder(order);
+    if (!normalized?.id) return;
     setOrdersMap((prev) => {
       const next = new Map(prev);
-      next.set(normalized.id, normalized);
+      if (isTerminalKDSStatus(normalized.status) || !isActiveKDSStatus(normalized.status)) {
+        next.delete(normalized.id);
+      } else {
+        next.set(normalized.id, normalized);
+      }
       return next;
     });
   }, []);
@@ -95,6 +109,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
     setOrdersMap((prev) => {
       const next = new Map(prev);
       next.delete(orderId);
+      next.delete(orderKey(orderId));
       return next;
     });
   }, []);
@@ -109,7 +124,9 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
         const updated = await updateOrderStatus({ token, orderId, status });
         if (!mountedRef.current) return;
 
-        if (updated) {
+        if (updated && isTerminalKDSStatus(updated.status)) {
+          removeOrder(orderId);
+        } else if (updated) {
           upsertOrder(updated);
         }
         addToast?.(`Order updated to ${status}`, 'success');
@@ -118,6 +135,8 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
 
         if (err.status === 404) {
           removeOrder(orderId);
+        } else if (err.status === 409) {
+          loadOrders(false);
         }
         handleApiError(err, 'Status update');
       } finally {
@@ -130,7 +149,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
         }
       }
     },
-    [token, upsertOrder, removeOrder, handleApiError, addToast]
+    [token, upsertOrder, removeOrder, loadOrders, handleApiError, addToast]
   );
 
   const addNote = useCallback(
@@ -155,7 +174,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
   const refresh = useCallback(() => loadOrders(false), [loadOrders]);
 
   // Build filtered & sorted display array
-  const orders = sortOrders(Array.from(ordersMap.values())).filter((o) => {
+  const orders = sortOrders(Array.from(ordersMap.values()).filter((o) => isActiveKDSStatus(o.status))).filter((o) => {
     if (!stationId || stationId === 'all') return true;
     if (!o.stationIds || o.stationIds.length === 0) return false;
     return o.stationIds.includes(stationId);

@@ -1,11 +1,10 @@
 import { STATUS_COLORS } from '../utils/constants';
 
 const STATUS_LABELS = {
-  NEW: 'New',
-  ACCEPTED: 'Accepted',
+  CONFIRMED: 'New',
   PREPARING: 'Cooking',
   READY: 'Ready',
-  SERVED: 'Served',
+  COMPLETED: 'Completed',
 };
 
 export default function StatusBadge({ status }) {

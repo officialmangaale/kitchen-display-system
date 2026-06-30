@@ -1,4 +1,4 @@
-import { STATUSES } from './constants';
+import { ACTIVE_STATUSES, TERMINAL_STATUSES } from './constants.js';
 
 /**
  * Extract numeric ID from order ID string like "ord-482" -> "482"
@@ -10,18 +10,67 @@ export function extractNumericOrderId(orderId) {
   return match ? match[1] : str;
 }
 
+export function orderKey(orderId) {
+  const numeric = extractNumericOrderId(orderId);
+  return numeric ? `ord-${numeric}` : String(orderId || '');
+}
+
+export function normalizeStatus(status) {
+  const value = String(status || '').trim().toUpperCase();
+  switch (value) {
+    case 'NEW':
+    case 'CONFIRMED':
+      return 'CONFIRMED';
+    case 'ACCEPTED':
+    case 'PREPARING':
+      return 'PREPARING';
+    case 'READY':
+      return 'READY';
+    case 'SERVED':
+    case 'COMPLETED':
+    case 'DONE':
+      return 'COMPLETED';
+    case 'CANCELLED':
+    case 'CANCELED':
+    case 'REJECTED':
+    case 'DECLINED':
+    case 'FAILED':
+    case 'EXPIRED':
+    case 'DELIVERED':
+      return value;
+    default:
+      return null;
+  }
+}
+
+export function isActiveKDSStatus(status) {
+  return ACTIVE_STATUSES.includes(normalizeStatus(status));
+}
+
+export function isTerminalKDSStatus(status) {
+  return TERMINAL_STATUSES.includes(normalizeStatus(status));
+}
+
 /**
  * Normalize an order object with defensive defaults
  */
 export function normalizeOrder(order) {
   if (!order) return null;
+  const status = normalizeStatus(order.status || order.order_status);
+  if (!status) return null;
+  const id = order.id || order.orderId || order.order_id || order.orderID || '';
+  const timerStartedAt = order.timerStartedAt || order.timer_started_at || order.placedAt || order.created_at;
+  const timerStoppedAt = order.timerStoppedAt || order.timer_stopped_at || null;
+
   return {
     ...order,
-    id: order.id || '',
+    id: orderKey(id || order.number),
     number: order.number || 0,
     table: order.table || null,
-    placedAt: order.placedAt || new Date().toISOString(),
-    status: STATUSES.includes(order.status) ? order.status : 'NEW',
+    placedAt: timerStartedAt || new Date().toISOString(),
+    timerStartedAt: timerStartedAt || order.placedAt || new Date().toISOString(),
+    timerStoppedAt,
+    status,
     priority: ['NORMAL', 'HIGH', 'RUSH'].includes(order.priority)
       ? order.priority
       : 'NORMAL',
@@ -49,18 +98,18 @@ function normalizeItem(item) {
 /**
  * Get elapsed minutes since placedAt
  */
-export function getElapsedMinutes(placedAt) {
+export function getElapsedMinutes(placedAt, stoppedAt) {
   if (!placedAt) return 0;
   const placed = new Date(placedAt);
-  const now = new Date();
-  return Math.max(0, Math.floor((now - placed) / 60000));
+  const end = stoppedAt ? new Date(stoppedAt) : new Date();
+  return Math.max(0, Math.floor((end - placed) / 60000));
 }
 
 /**
  * Get SLA ratio (0 to 1+)
  */
-export function getSlaRatio(placedAt, slaMinutes) {
-  const elapsed = getElapsedMinutes(placedAt);
+export function getSlaRatio(placedAt, slaMinutes, stoppedAt) {
+  const elapsed = getElapsedMinutes(placedAt, stoppedAt);
   const sla = slaMinutes || 15;
   return elapsed / sla;
 }
@@ -68,8 +117,8 @@ export function getSlaRatio(placedAt, slaMinutes) {
 /**
  * Get SLA severity level
  */
-export function getSlaSeverity(placedAt, slaMinutes) {
-  const ratio = getSlaRatio(placedAt, slaMinutes);
+export function getSlaSeverity(placedAt, slaMinutes, stoppedAt) {
+  const ratio = getSlaRatio(placedAt, slaMinutes, stoppedAt);
   if (ratio >= 1) return 'breached';
   if (ratio >= 0.8) return 'urgent';
   if (ratio >= 0.5) return 'warning';
@@ -82,10 +131,9 @@ export function getSlaSeverity(placedAt, slaMinutes) {
  * - 60-999 min: 2h 15m
  * - over 999 min: 999m+
  */
-export function formatTimer(placedAt, slaMinutes) {
-  const elapsed = getElapsedMinutes(placedAt);
-  const sla = slaMinutes || 15;
-  
+export function formatTimer(placedAt, slaMinutes, stoppedAt) {
+  const elapsed = getElapsedMinutes(placedAt, stoppedAt);
+
   if (elapsed > 999) return '999m+';
 
   if (elapsed >= 60) {
@@ -100,26 +148,28 @@ export function formatTimer(placedAt, slaMinutes) {
 /**
  * Check if order is late (SLA breached)
  */
-export function isOrderLate(placedAt, slaMinutes) {
-  return getSlaRatio(placedAt, slaMinutes) >= 1;
+export function isOrderLate(placedAt, slaMinutes, stoppedAt) {
+  if (typeof placedAt === 'object' && placedAt !== null) {
+    const order = placedAt;
+    return getSlaRatio(order.placedAt, order.slaMinutes, order.timerStoppedAt) >= 1;
+  }
+  return getSlaRatio(placedAt, slaMinutes, stoppedAt) >= 1;
 }
 
 /**
  * Group rank logic:
  * 1. READY (10)
  * 2. LATE (20)
- * 3. NEW (30)
+ * 3. CONFIRMED (30)
  * 4. PREPARING (40)
- * 5. ACCEPTED (50)
- * 6. SERVED (60)
+ * 5. terminal/unknown (60)
  */
 function getSortRank(order) {
   if (order.status === 'READY') return 10;
-  if (order.status !== 'SERVED' && isOrderLate(order.placedAt, order.slaMinutes)) return 20;
-  if (order.status === 'NEW') return 30;
+  if (isActiveKDSStatus(order.status) && isOrderLate(order)) return 20;
+  if (order.status === 'CONFIRMED') return 30;
   if (order.status === 'PREPARING') return 40;
-  if (order.status === 'ACCEPTED') return 50;
-  if (order.status === 'SERVED') return 60;
+  if (isTerminalKDSStatus(order.status)) return 60;
   return 100;
 }
 
@@ -153,16 +203,16 @@ export function countByStatus(orders, status) {
 export function countBreached(orders) {
   return orders.filter(
     (o) =>
-      o.status !== 'SERVED' &&
-      isOrderLate(o.placedAt, o.slaMinutes)
+      isActiveKDSStatus(o.status) &&
+      isOrderLate(o)
   ).length;
 }
 
 /**
- * Count active orders (not SERVED)
+ * Count active kitchen orders.
  */
 export function countActive(orders) {
-  return orders.filter((o) => o.status !== 'SERVED').length;
+  return orders.filter((o) => isActiveKDSStatus(o.status)).length;
 }
 
 /**

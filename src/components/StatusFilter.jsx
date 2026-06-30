@@ -1,10 +1,10 @@
-import { countByStatus, countBreached } from '../utils/orderUtils';
+import { countActive, countByStatus, countBreached } from '../utils/orderUtils';
 
 export default function StatusFilter({ selected, onChange, orders }) {
   const tabs = [
-    { id: 'all', label: 'All', count: orders.filter(o => o.status !== 'SERVED').length },
-    { id: 'new', label: 'New', count: countByStatus(orders, 'NEW') },
-    { id: 'cooking', label: 'Cooking', count: countByStatus(orders, 'ACCEPTED') + countByStatus(orders, 'PREPARING') },
+    { id: 'all', label: 'All', count: countActive(orders) },
+    { id: 'new', label: 'New', count: countByStatus(orders, 'CONFIRMED') },
+    { id: 'cooking', label: 'Cooking', count: countByStatus(orders, 'PREPARING') },
     { id: 'ready', label: 'Ready', count: countByStatus(orders, 'READY') },
     { id: 'late', label: 'Late', count: countBreached(orders) },
   ];
