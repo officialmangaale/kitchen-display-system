@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { BASE_URL } from '../utils/constants';
 import { isActiveKDSStatus, isTerminalKDSStatus, normalizeOrder } from '../utils/orderUtils';
-import { playNewOrderSound } from '../utils/sound';
 
 /**
  * SSE stream hook for real-time KDS events.
@@ -43,11 +42,6 @@ export function useKDSStream(token, callbacks) {
         const order = normalizeOrder(JSON.parse(e.data));
         if (order && isActiveKDSStatus(order.status)) {
           callbacksRef.current.onOrderNew?.(order);
-          playNewOrderSound();
-          callbacksRef.current.addToast?.(
-            `New order #${order.number || order.id} arrived`,
-            'info'
-          );
         }
       } catch {
         // Malformed event data

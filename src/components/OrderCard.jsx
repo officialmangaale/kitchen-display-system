@@ -15,27 +15,20 @@ export default function OrderCard({
 
   const isLate = isOrderLate(order);
   const actions = STATUS_ACTIONS[order.status];
+  const displayNumber = order.order_number || order.orderNumber || order.number || order.id;
   
-  // Clean primary button texts
-  const getPrimaryLabel = (status) => {
-    if (status === 'CONFIRMED') return 'ACCEPT';
-    if (status === 'PREPARING') return 'MARK READY';
-    if (status === 'READY') return 'COMPLETE';
-    return 'ACTION';
-  };
-
   return (
     <article
       className={`order-card order-card--${(order.status || 'new').toLowerCase()} ${
         isLate ? 'order-card--late' : ''
       }`}
-      aria-label={`Order ${order.number || order.id}`}
+      aria-label={`Order ${displayNumber}`}
     >
       <div className="order-card__strip" />
 
       {/* Header */}
       <div className="order-card__header">
-        <div className="order-card__id">#{order.number || order.id}</div>
+        <div className="order-card__id">#{displayNumber}</div>
         <div className="order-card__type">
           {order.table ? `Table ${order.table}` : <><Utensils size={18}/> Takeaway</>}
         </div>
@@ -46,6 +39,19 @@ export default function OrderCard({
           status={order.status}
         />
       </div>
+
+      {(order.customer_name || order.customerName || order.special_instructions) && (
+        <div className="order-notes">
+          {(order.customer_name || order.customerName) && (
+            <div className="order-note-item">
+              Customer: {order.customer_name || order.customerName}
+            </div>
+          )}
+          {order.special_instructions && (
+            <div className="order-note-item">{order.special_instructions}</div>
+          )}
+        </div>
+      )}
 
       {/* Items */}
       <ul className="order-items">
@@ -91,7 +97,7 @@ export default function OrderCard({
             onClick={() => onStatusChange(order.id, actions.primary.next)}
             disabled={isUpdating}
           >
-            {isUpdating ? <Loader2 size={24} className="spin" /> : getPrimaryLabel(order.status)}
+            {isUpdating ? <Loader2 size={24} className="spin" /> : actions.primary.label.toUpperCase()}
           </button>
         )}
 

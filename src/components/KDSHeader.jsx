@@ -2,6 +2,7 @@ import { ChefHat, RefreshCw, LogOut, Loader2 } from 'lucide-react';
 import ConnectionStatus from './ConnectionStatus';
 import FullscreenButton from './FullscreenButton';
 import TVModeToggle from './TVModeToggle';
+import SoundToggle from './SoundToggle';
 import { USER_NAME_KEY, USER_ROLE_KEY } from '../utils/constants';
 
 export default function KDSHeader({
@@ -14,6 +15,9 @@ export default function KDSHeader({
   onRefresh,
   onLogout,
   refreshing,
+  soundEnabled,
+  soundMuted,
+  onToggleSound,
 }) {
   const timeStr = clock.toLocaleTimeString([], {
     hour: '2-digit',
@@ -54,6 +58,12 @@ export default function KDSHeader({
         </div>
 
         <TVModeToggle isTvMode={isTvMode} onToggle={onToggleTvMode} />
+
+        <SoundToggle
+          enabled={soundEnabled}
+          muted={soundMuted}
+          onToggle={onToggleSound}
+        />
 
         <button
           className="header-btn"

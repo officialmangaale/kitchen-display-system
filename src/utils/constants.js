@@ -1,9 +1,12 @@
+const viteEnv = import.meta.env || {};
+
 export const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://restaurant-prod.mangaale.com';
+  viteEnv.VITE_API_BASE_URL || 'https://restaurant-prod.mangaale.com';
 
 export const TOKEN_KEY = 'jwt_token';
 export const USER_ROLE_KEY = 'user_role';
 export const USER_NAME_KEY = 'user_name';
+export const KDS_POLL_INTERVAL_MS = 15000;
 
 export const ACTIVE_STATUSES = ['CONFIRMED', 'PREPARING', 'READY'];
 export const TERMINAL_STATUSES = [
@@ -21,7 +24,7 @@ export const STATUSES = [...ACTIVE_STATUSES, ...TERMINAL_STATUSES];
 
 export const STATUS_ACTIONS = {
   CONFIRMED: {
-    primary: { next: 'PREPARING', label: 'Accept' },
+    primary: { next: 'PREPARING', label: 'Start Preparing' },
     secondary: [],
   },
   PREPARING: {
@@ -50,15 +53,5 @@ export const PRIORITY_COLORS = {
   HIGH: 'var(--accent)',
   RUSH: 'var(--danger)',
 };
-
-export const DEFAULT_STATIONS = [
-  { id: 'all', label: 'All' },
-  { id: 'grill', label: 'Grill' },
-  { id: 'fryer', label: 'Fryer' },
-  { id: 'tandoor', label: 'Tandoor' },
-  { id: 'beverage', label: 'Beverage' },
-  { id: 'dessert', label: 'Dessert' },
-  { id: 'salad', label: 'Salad' },
-];
 
 export const NOTE_MAX_LENGTH = 500;

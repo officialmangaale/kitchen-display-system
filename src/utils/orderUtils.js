@@ -25,6 +25,8 @@ export function normalizeStatus(status) {
     case 'PREPARING':
       return 'PREPARING';
     case 'READY':
+    case 'READY_TO_SERVE':
+    case 'READYTOSERVE':
       return 'READY';
     case 'SERVED':
     case 'COMPLETED':
@@ -226,4 +228,36 @@ export function extractStations(orders) {
     }
   });
   return Array.from(set).sort();
+}
+
+/**
+ * Compare two active-order snapshots and return only meaningful sound events.
+ * Initial hydration is deliberately silent.
+ */
+export function getOrderAlertEvents(previousOrders, nextOrders, initialized = true) {
+  if (!initialized) return [];
+
+  const previous = previousOrders instanceof Map
+    ? previousOrders
+    : new Map((previousOrders || []).map((order) => [order.id, order]));
+  const next = nextOrders instanceof Map
+    ? nextOrders
+    : new Map((nextOrders || []).map((order) => [order.id, order]));
+  const events = [];
+
+  next.forEach((order, id) => {
+    if (!isActiveKDSStatus(order.status)) return;
+    const prior = previous.get(id);
+    const priorStatus = normalizeStatus(prior?.status);
+
+    if (!prior && order.status === 'CONFIRMED') {
+      events.push({ type: 'new', order });
+      return;
+    }
+    if (order.status === 'READY' && priorStatus !== 'READY') {
+      events.push({ type: 'ready', order });
+    }
+  });
+
+  return events;
 }

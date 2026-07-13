@@ -3,11 +3,12 @@ import { getOrders, updateOrderStatus, addKitchenNote } from '../api/kdsApi';
 import {
   isActiveKDSStatus,
   isTerminalKDSStatus,
+  getOrderAlertEvents,
   normalizeOrder,
   orderKey,
   sortOrders,
 } from '../utils/orderUtils';
-import { TOKEN_KEY } from '../utils/constants';
+import { KDS_POLL_INTERVAL_MS, TOKEN_KEY } from '../utils/constants';
 
 /**
  * Main KDS orders state management hook.
@@ -17,12 +18,19 @@ import { TOKEN_KEY } from '../utils/constants';
  * @param {function} addToast - toast function
  * @param {function} onUnauthorized - callback for 401
  */
-export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
+export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrderEvent) {
   const [ordersMap, setOrdersMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingIds, setUpdatingIds] = useState(new Set());
   const mountedRef = useRef(true);
+  const ordersMapRef = useRef(new Map());
+  const initializedRef = useRef(false);
+  const onOrderEventRef = useRef(onOrderEvent);
+
+  useEffect(() => {
+    onOrderEventRef.current = onOrderEvent;
+  }, [onOrderEvent]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -45,7 +53,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
         return;
       }
       if (err.status === 409) {
-        addToast?.('Order was updated elsewhere. Refreshing…', 'warning');
+        addToast?.('Order was updated elsewhere. Refreshing...', 'warning');
         return;
       }
       if (err.status === 400 && err.code === 'INVALID_STATUS_TRANSITION') {
@@ -71,7 +79,15 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
         orders
           .filter((o) => isActiveKDSStatus(o.status))
           .forEach((o) => map.set(o.id, o));
+        const events = getOrderAlertEvents(
+          ordersMapRef.current,
+          map,
+          initializedRef.current,
+        );
+        ordersMapRef.current = map;
         setOrdersMap(map);
+        initializedRef.current = true;
+        events.forEach((event) => onOrderEventRef.current?.(event));
       } catch (err) {
         if (!mountedRef.current) return;
         setError(err);
@@ -91,27 +107,38 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized) {
     return () => window.clearTimeout(timer);
   }, [loadOrders]);
 
+  // SSE is the primary low-latency path; polling reconciles missed events and
+  // keeps the board current when a proxy or network interrupts the stream.
+  useEffect(() => {
+    if (!token) return undefined;
+    const interval = window.setInterval(() => {
+      loadOrders(false);
+    }, KDS_POLL_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [token, loadOrders]);
+
   const upsertOrder = useCallback((order) => {
     const normalized = normalizeOrder(order);
     if (!normalized?.id) return;
-    setOrdersMap((prev) => {
-      const next = new Map(prev);
-      if (isTerminalKDSStatus(normalized.status) || !isActiveKDSStatus(normalized.status)) {
-        next.delete(normalized.id);
-      } else {
-        next.set(normalized.id, normalized);
-      }
-      return next;
-    });
+    const previous = ordersMapRef.current;
+    const next = new Map(previous);
+    if (isTerminalKDSStatus(normalized.status) || !isActiveKDSStatus(normalized.status)) {
+      next.delete(normalized.id);
+    } else {
+      next.set(normalized.id, normalized);
+    }
+    const events = getOrderAlertEvents(previous, next, initializedRef.current);
+    ordersMapRef.current = next;
+    setOrdersMap(next);
+    events.forEach((event) => onOrderEventRef.current?.(event));
   }, []);
 
   const removeOrder = useCallback((orderId) => {
-    setOrdersMap((prev) => {
-      const next = new Map(prev);
-      next.delete(orderId);
-      next.delete(orderKey(orderId));
-      return next;
-    });
+    const next = new Map(ordersMapRef.current);
+    next.delete(orderId);
+    next.delete(orderKey(orderId));
+    ordersMapRef.current = next;
+    setOrdersMap(next);
   }, []);
 
   const updateStatus = useCallback(

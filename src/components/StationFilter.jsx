@@ -1,16 +1,15 @@
-import { DEFAULT_STATIONS } from '../utils/constants';
 import { extractStations } from '../utils/orderUtils';
 
 export default function StationFilter({ selected, onChange, orders }) {
-  const dynamicIds = extractStations(orders);
-  const defaultIds = DEFAULT_STATIONS.map((s) => s.id);
-
-  const stations = [...DEFAULT_STATIONS];
-  dynamicIds.forEach((id) => {
-    if (!defaultIds.includes(id)) {
-      stations.push({ id, label: id.charAt(0).toUpperCase() + id.slice(1) });
-    }
-  });
+  const configuredStations = extractStations(orders);
+  if (configuredStations.length === 0) return null;
+  const stations = [
+    { id: 'all', label: 'All' },
+    ...configuredStations.map((id) => ({
+      id,
+      label: id.charAt(0).toUpperCase() + id.slice(1),
+    })),
+  ];
 
   return (
     <nav className="station-filter" role="tablist" aria-label="Station filter">

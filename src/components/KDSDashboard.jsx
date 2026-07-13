@@ -15,6 +15,7 @@ import ToastHost from './ToastHost';
 import AddNoteModal from './AddNoteModal';
 import FullscreenTip from './FullscreenTip';
 import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
+import { playOrderAlert, unlockAudio } from '../utils/sound';
 
 export default function KDSDashboard({ token, onLogout }) {
   const clock = useClock(30000);
@@ -26,6 +27,8 @@ export default function KDSDashboard({ token, onLogout }) {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [noteModal, setNoteModal] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(false);
   
   // TV Mode default based on screen width
   const [isTvMode, setIsTvMode] = useState(() => {
@@ -49,6 +52,17 @@ export default function KDSDashboard({ token, onLogout }) {
     [onLogout]
   );
 
+  const handleOrderEvent = useCallback((event) => {
+    const displayNumber = event.order.order_number || event.order.number || event.order.id;
+    if (soundEnabled && !soundMuted) playOrderAlert(event.type);
+    addToast(
+      event.type === 'ready'
+        ? `Order #${displayNumber} is ready`
+        : `New order #${displayNumber} arrived`,
+      event.type === 'ready' ? 'success' : 'info',
+    );
+  }, [addToast, soundEnabled, soundMuted]);
+
   const {
     orders,
     ordersMap,
@@ -61,7 +75,13 @@ export default function KDSDashboard({ token, onLogout }) {
     addNote,
     refresh,
     loadOrders,
-  } = useKDSOrders(token, 'all', addToast, handleUnauthorized); // Load all stations from backend, filter locally
+  } = useKDSOrders(
+    token,
+    'all',
+    addToast,
+    handleUnauthorized,
+    handleOrderEvent,
+  ); // Load all stations from backend, filter locally
 
   // SSE callbacks
   const sseCallbacks = {
@@ -88,7 +108,7 @@ export default function KDSDashboard({ token, onLogout }) {
       [removeOrder]
     ),
     onError: useCallback(() => {
-      setConnectionStatus('reconnecting');
+      setConnectionStatus('polling');
     }, []),
     addToast,
   };
@@ -100,6 +120,20 @@ export default function KDSDashboard({ token, onLogout }) {
     await refresh();
     setRefreshing(false);
   }, [refresh]);
+
+  const handleToggleSound = useCallback(async () => {
+    if (!soundEnabled) {
+      const unlocked = await unlockAudio();
+      setSoundEnabled(unlocked);
+      setSoundMuted(false);
+      addToast(
+        unlocked ? 'Kitchen alerts enabled' : 'Browser blocked audio. Tap again to retry.',
+        unlocked ? 'success' : 'warning',
+      );
+      return;
+    }
+    setSoundMuted((value) => !value);
+  }, [addToast, soundEnabled]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -172,6 +206,9 @@ export default function KDSDashboard({ token, onLogout }) {
         onRefresh={handleRefresh}
         onLogout={() => onLogout()}
         refreshing={refreshing}
+        soundEnabled={soundEnabled}
+        soundMuted={soundMuted}
+        onToggleSound={handleToggleSound}
       />
 
       <main className="kds-main">

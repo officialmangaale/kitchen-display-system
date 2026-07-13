@@ -16,6 +16,11 @@ export default function ConnectionStatus({ status }) {
       label: 'Reconnecting',
       className: 'conn-status conn-status--reconnecting',
     },
+    polling: {
+      icon: <WifiOff size={14} />,
+      label: 'Polling',
+      className: 'conn-status conn-status--reconnecting',
+    },
     disconnected: {
       icon: <WifiOff size={14} />,
       label: 'Disconnected',
