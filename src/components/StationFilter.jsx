@@ -12,14 +12,16 @@ export default function StationFilter({ selected, onChange, orders }) {
   ];
 
   return (
-    <nav className="station-filter" role="tablist" aria-label="Station filter">
+    <nav className="flex gap-2 overflow-x-auto ml-4 no-scrollbar items-center" role="tablist" aria-label="Station filter">
       {stations.map((station) => (
         <button
           key={station.id}
           role="tab"
           aria-selected={selected === station.id}
-          className={`station-pill ${
-            selected === station.id ? 'station-pill--active' : ''
+          className={`flex items-center h-[32px] px-4 rounded-full text-[13px] font-semibold whitespace-nowrap border transition-all duration-200 ${
+            selected === station.id 
+              ? 'bg-kds-new text-white border-kds-new' 
+              : 'bg-kds-surface-2 border-kds-border text-kds-text-2 hover:bg-kds-surface-3 hover:text-kds-text'
           }`}
           onClick={() => onChange(station.id)}
         >

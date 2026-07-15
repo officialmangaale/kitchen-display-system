@@ -16,6 +16,7 @@ import AddNoteModal from './AddNoteModal';
 import FullscreenTip from './FullscreenTip';
 import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
 import { playOrderAlert, unlockAudio } from '../utils/sound';
+import { OfflineBanner } from './ConnectionStatus';
 
 export default function KDSDashboard({ token, onLogout }) {
   const clock = useClock(30000);
@@ -177,25 +178,48 @@ export default function KDSDashboard({ token, onLogout }) {
   );
 
   // Filter visible orders locally (Station + Status).
-  const visibleOrders = orders.filter((o) => {
-    if (!isActiveKDSStatus(o.status)) return false;
+  const visibleOrders = orders
+    .filter((o) => {
+      if (!isActiveKDSStatus(o.status)) return false;
 
-    // Station Filter
-    if (stationId !== 'all') {
-      if (!o.stationIds || !o.stationIds.includes(stationId)) return false;
-    }
+      // Station Filter
+      if (stationId !== 'all') {
+        if (!o.stationIds || !o.stationIds.includes(stationId)) return false;
+      }
 
-    // Status Filter
-    if (statusFilter === 'new' && o.status !== 'CONFIRMED') return false;
-    if (statusFilter === 'cooking' && o.status !== 'PREPARING') return false;
-    if (statusFilter === 'ready' && o.status !== 'READY') return false;
-    if (statusFilter === 'late' && !isOrderLate(o)) return false;
+      // Status Filter
+      if (statusFilter === 'new' && o.status !== 'CONFIRMED') return false;
+      if (statusFilter === 'cooking' && o.status !== 'PREPARING') return false;
+      if (statusFilter === 'ready' && o.status !== 'READY') return false;
+      if (statusFilter === 'late' && !isOrderLate(o)) return false;
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      const aLate = isOrderLate(a);
+      const bLate = isOrderLate(b);
+
+      const statusOrder = {
+        'CONFIRMED': 4,
+        'PREPARING': 3,
+        'READY': 5,
+      };
+
+      const pA = aLate ? 1 : statusOrder[a.status] || 99;
+      const pB = bLate ? 1 : statusOrder[b.status] || 99;
+
+      if (pA !== pB) return pA - pB;
+
+      // If same priority, older orders first
+      const timeA = new Date(a.placedAt).getTime();
+      const timeB = new Date(b.placedAt).getTime();
+      return timeA - timeB;
+    });
 
   return (
-    <div className={`kds-dashboard ${isTvMode ? 'tv-mode' : ''}`}>
+    <div className={`min-h-screen bg-kds-bg text-kds-text flex flex-col pt-[120px] ${isTvMode ? 'tv-mode' : ''}`}>
+      <OfflineBanner status={connectionStatus} />
+      
       <KDSHeader
         clock={clock}
         connectionStatus={connectionStatus}
@@ -211,10 +235,8 @@ export default function KDSDashboard({ token, onLogout }) {
         onToggleSound={handleToggleSound}
       />
 
-      <main className="kds-main">
-        <FullscreenTip isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
-        
-        <div className="kds-filters">
+      <div className="fixed top-[64px] left-0 right-0 z-40 flex items-center justify-between px-6 bg-kds-surface border-b border-kds-border h-[56px] select-none shadow-sm">
+        <div className="flex items-center overflow-x-auto no-scrollbar">
           <StatusFilter 
             selected={statusFilter} 
             onChange={setStatusFilter} 
@@ -226,7 +248,14 @@ export default function KDSDashboard({ token, onLogout }) {
             orders={Array.from(ordersMap.values())}
           />
         </div>
+        <div className="text-[13px] font-medium text-kds-text-3 whitespace-nowrap pl-4 hidden md:block">
+          Orders today: {orders.length}
+        </div>
+      </div>
 
+      <main className="flex-1 p-6 overflow-x-hidden">
+        <FullscreenTip isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
+        
         <ErrorBanner error={error} onRetry={() => loadOrders()} />
 
         {loading ? (
@@ -234,16 +263,17 @@ export default function KDSDashboard({ token, onLogout }) {
         ) : visibleOrders.length === 0 && !error ? (
           <EmptyKitchen connectionStatus={connectionStatus} />
         ) : (
-          <div className="kds-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 auto-rows-max items-start">
             {visibleOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                isUpdating={updatingIds.has(order.id)}
-                onStatusChange={handleStatusChange}
-                onAddNote={handleAddNote}
-                clock={clock}
-              />
+              <div key={order.id} className="h-full">
+                <OrderCard
+                  order={order}
+                  isUpdating={updatingIds.has(order.id)}
+                  onStatusChange={handleStatusChange}
+                  onAddNote={handleAddNote}
+                  clock={clock}
+                />
+              </div>
             ))}
           </div>
         )}

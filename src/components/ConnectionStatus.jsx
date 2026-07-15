@@ -1,39 +1,46 @@
-import { Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
-/**
- * Connection status indicator for SSE stream.
- * States: connected, reconnecting, disconnected
- */
 export default function ConnectionStatus({ status }) {
-  const config = {
-    connected: {
-      icon: <Wifi size={14} />,
-      label: 'Live',
-      className: 'conn-status conn-status--live',
-    },
-    reconnecting: {
-      icon: <Loader2 size={14} className="spin" />,
-      label: 'Reconnecting',
-      className: 'conn-status conn-status--reconnecting',
-    },
-    polling: {
-      icon: <WifiOff size={14} />,
-      label: 'Polling',
-      className: 'conn-status conn-status--reconnecting',
-    },
-    disconnected: {
-      icon: <WifiOff size={14} />,
-      label: 'Disconnected',
-      className: 'conn-status conn-status--disconnected',
-    },
-  };
+  const isConnected = status === 'connected';
+  const isReconnecting = status === 'reconnecting' || status === 'polling';
+  
+  let dotClass = 'w-1.5 h-1.5 rounded-full shrink-0 ';
+  let textClass = 'text-[10px] font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5 ';
+  let label = '';
 
-  const c = config[status] || config.disconnected;
+  if (isConnected) {
+    dotClass += 'bg-kds-ready animate-pulse';
+    textClass += 'text-kds-ready';
+    label = 'LIVE';
+  } else if (isReconnecting) {
+    dotClass += 'bg-kds-cooking animate-spin rounded-sm';
+    textClass += 'text-kds-cooking';
+    label = 'RECONNECTING...';
+  } else {
+    dotClass += 'bg-kds-critical';
+    textClass += 'text-kds-critical';
+    label = 'OFFLINE';
+  }
 
   return (
-    <div className={c.className} role="status" aria-label={`Connection: ${c.label}`}>
-      {c.icon}
-      <span>{c.label}</span>
+    <div className={textClass}>
+      <span className={dotClass} />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+export function OfflineBanner({ status }) {
+  if (status === 'connected') return null;
+
+  return (
+    <div className="fixed top-[64px] left-0 right-0 z-40 bg-kds-critical-bg border-b-2 border-kds-critical px-6 py-2.5 flex items-center gap-2 animate-slide-in">
+      <AlertTriangle size={16} className="text-kds-critical" />
+      <span className="text-kds-text text-[14px] font-semibold">
+        {status === 'disconnected'
+          ? '⚠ Connection lost. Orders may not update. Reconnecting...'
+          : '⚠ SSE unavailable — using polling. Updates may be delayed.'}
+      </span>
     </div>
   );
 }
