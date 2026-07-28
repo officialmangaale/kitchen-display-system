@@ -12,12 +12,17 @@ export default function OrderCard({
   onAddNote,
   clock, // unused but triggers re-render
 }) {
-  if (!order) return null;
+  const safeOrder = order || { items: [] };
   void clock;
 
-  const isLate = isOrderLate(order);
-  const actions = STATUS_ACTIONS[order.status];
-  const displayNumber = order.order_number || order.orderNumber || order.number || order.id;
+  const isLate = isOrderLate(safeOrder);
+  const isDelivery = String(safeOrder.orderType || safeOrder.order_type || safeOrder.type || '')
+    .trim()
+    .toLowerCase() === 'delivery';
+  const actions = safeOrder.status === 'READY' && isDelivery
+    ? null
+    : STATUS_ACTIONS[safeOrder.status];
+  const displayNumber = safeOrder.order_number || safeOrder.orderNumber || safeOrder.number || safeOrder.id;
 
   // Local state for ticked items
   const [tickedItems, setTickedItems] = useState({});
@@ -30,9 +35,11 @@ export default function OrderCard({
   };
 
   const allItemsTicked = useMemo(() => {
-    if (!order.items || order.items.length === 0) return true;
-    return order.items.every(item => tickedItems[item.id]);
-  }, [order.items, tickedItems]);
+    if (!safeOrder.items || safeOrder.items.length === 0) return true;
+    return safeOrder.items.every(item => tickedItems[item.id]);
+  }, [safeOrder.items, tickedItems]);
+
+  if (!order) return null;
 
   // Determine border, shadow, and badge color based on status
   let cardClass = "relative flex flex-col bg-kds-surface rounded-kds-lg border overflow-hidden transition-all duration-300 transform w-full h-full max-h-full flex-1 ";
@@ -120,6 +127,11 @@ export default function OrderCard({
 
       {/* Footer Actions */}
       <div className="flex flex-col p-4 bg-kds-surface-2 border-t border-kds-border gap-2 shrink-0">
+        {order.status === 'READY' && isDelivery && (
+          <div className="flex items-center justify-center w-full h-[60px] rounded-kds bg-kds-surface-3 text-kds-ready text-[16px] font-black uppercase tracking-wider border border-kds-ready/40">
+            Waiting for rider pickup
+          </div>
+        )}
         {actions?.primary && (
           <button
             className={`relative flex items-center justify-center w-full h-[60px] rounded-kds text-[20px] font-black uppercase tracking-widest transition-all duration-200 active:scale-[0.98] ${

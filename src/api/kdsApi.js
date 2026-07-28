@@ -1,5 +1,6 @@
 import { BASE_URL } from '../utils/constants';
 import { extractNumericOrderId, normalizeOrder } from '../utils/orderUtils';
+import { appendScope } from '../utils/scope';
 
 /**
  * Shared request helper
@@ -42,12 +43,12 @@ async function request(path, { token, method = 'GET', body } = {}) {
 /**
  * Fetch KDS orders, optionally filtered by station
  */
-export async function getOrders({ token, stationId }) {
+export async function getOrders({ token, stationId, scope }) {
   let path = '/kds/orders';
   if (stationId && stationId !== 'all') {
     path += `?stationId=${encodeURIComponent(stationId)}`;
   }
-  const data = await request(path, { token });
+  const data = await request(appendScope(path, scope), { token });
   const orders = Array.isArray(data) ? data : data?.orders || [];
   return orders.map(normalizeOrder).filter(Boolean);
 }
@@ -55,9 +56,9 @@ export async function getOrders({ token, stationId }) {
 /**
  * Update order status (uses numeric ID)
  */
-export async function updateOrderStatus({ token, orderId, status }) {
+export async function updateOrderStatus({ token, orderId, status, scope }) {
   const numId = extractNumericOrderId(orderId);
-  const data = await request(`/kds/orders/${numId}/status`, {
+  const data = await request(appendScope(`/kds/orders/${numId}/status`, scope), {
     token,
     method: 'PATCH',
     body: { status },
@@ -68,11 +69,21 @@ export async function updateOrderStatus({ token, orderId, status }) {
 /**
  * Add a kitchen note to an order (uses numeric ID)
  */
-export async function addKitchenNote({ token, orderId, note }) {
+export async function addKitchenNote({ token, orderId, note, scope }) {
   const numId = extractNumericOrderId(orderId);
-  return request(`/kds/orders/${numId}/note`, {
+  return request(appendScope(`/kds/orders/${numId}/note`, scope), {
     token,
     method: 'POST',
     body: { note },
   });
+}
+
+export async function getCounter({ token, counterId }) {
+  if (!counterId) return null;
+  const response = await request(`/counters/${encodeURIComponent(counterId)}`, { token });
+  return response?.data || null;
+}
+
+export async function getDisplayConfig({ token, scope }) {
+  return request(appendScope('/kds/display-config', scope), { token });
 }

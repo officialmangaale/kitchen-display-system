@@ -24,7 +24,7 @@ export async function unlockAudio() {
 }
 
 // Play one short, non-looping alert for a new or ready ticket.
-export function playOrderAlert(kind = 'new') {
+export function playOrderAlert(kind = 'new', volume = 1) {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state !== 'running') return false;
@@ -39,7 +39,8 @@ export function playOrderAlert(kind = 'new') {
     osc1.type = 'sine';
     osc1.frequency.setValueAtTime(primaryFrequency, now);
     osc1.frequency.exponentialRampToValueAtTime(primaryEndFrequency, now + 0.15);
-    gain1.gain.setValueAtTime(0.18, now);
+    const safeVolume = Math.max(0, Math.min(1, Number(volume) || 0));
+    gain1.gain.setValueAtTime(0.18 * safeVolume, now);
     gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
@@ -50,7 +51,7 @@ export function playOrderAlert(kind = 'new') {
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(secondaryFrequency, now + 0.08);
-    gain2.gain.setValueAtTime(0.08, now + 0.08);
+    gain2.gain.setValueAtTime(0.08 * safeVolume, now + 0.08);
     gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);

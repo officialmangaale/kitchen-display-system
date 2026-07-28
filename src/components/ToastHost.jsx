@@ -13,11 +13,14 @@ export default function ToastHost({ toasts, onRemove }) {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 w-full max-w-[320px]" aria-live="polite" role="log">
       {toasts.map((t) => {
-        let typeClass = "";
-        if (t.type === 'success') typeClass = "bg-kds-ready-bg border-kds-ready text-kds-ready";
-        else if (t.type === 'error') typeClass = "bg-kds-critical-bg border-kds-critical text-kds-critical";
-        else if (t.type === 'warning') typeClass = "bg-kds-cooking-bg border-kds-cooking text-kds-cooking";
-        else typeClass = "bg-kds-new-bg border-kds-new text-kds-new";
+        const typeClass =
+          t.type === 'success'
+            ? "bg-kds-ready-bg border-kds-ready text-kds-ready"
+            : t.type === 'error'
+              ? "bg-kds-critical-bg border-kds-critical text-kds-critical"
+              : t.type === 'warning'
+                ? "bg-kds-cooking-bg border-kds-cooking text-kds-cooking"
+                : "bg-kds-new-bg border-kds-new text-kds-new";
 
         return (
           <div 

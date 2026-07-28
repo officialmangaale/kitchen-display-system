@@ -68,10 +68,18 @@ export function normalizeOrder(order) {
     ...order,
     id: orderKey(id || order.number),
     number: order.number || 0,
+    orderNumber: String(order.order_number || order.orderNumber || order.number || id || ''),
+    displayToken: String(order.display_token || order.displayToken || order.order_number || order.number || id || ''),
+    customerName: order.customer_name || order.customerName || null,
+    counterId: order.counter_id || order.counterId || null,
+    counterName: order.counter_name || order.counterName || '',
+    orderType: String(order.order_type || order.orderType || order.type || '').toUpperCase(),
     table: order.table || null,
     placedAt: timerStartedAt || new Date().toISOString(),
     timerStartedAt: timerStartedAt || order.placedAt || new Date().toISOString(),
     timerStoppedAt,
+    readyAt: order.ready_at || order.readyAt || timerStoppedAt,
+    estimatedMinutes: order.estimated_minutes ?? order.estimatedMinutes ?? order.slaMinutes ?? null,
     status,
     priority: ['NORMAL', 'HIGH', 'RUSH'].includes(order.priority)
       ? order.priority

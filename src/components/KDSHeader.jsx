@@ -13,6 +13,7 @@ export default function KDSHeader({
   soundEnabled,
   soundMuted,
   onToggleSound,
+  counterName,
 }) {
   const timeStr = clock.toLocaleTimeString([], {
     hour: '2-digit',
@@ -39,6 +40,9 @@ export default function KDSHeader({
             <span className="text-[18px] font-extrabold text-kds-cooking leading-tight">KDS</span>
           </div>
           <ConnectionStatus status={connectionStatus} />
+          <span className="text-[10px] text-kds-text-3 uppercase tracking-wider">
+            {counterName}
+          </span>
         </div>
       </div>
 

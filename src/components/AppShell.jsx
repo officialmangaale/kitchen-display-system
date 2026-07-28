@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { TOKEN_KEY, USER_ROLE_KEY, USER_NAME_KEY } from '../utils/constants';
 import LoginScreen from './LoginScreen';
 import KDSDashboard from './KDSDashboard';
+import { readKDSScope } from '../utils/scope';
 
 export default function AppShell() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '');
   const [logoutMessage, setLogoutMessage] = useState('');
+  const scope = useMemo(() => readKDSScope(), []);
 
   const handleLogin = useCallback((userData) => {
     localStorage.setItem(TOKEN_KEY, userData.authToken);
@@ -27,5 +29,5 @@ export default function AppShell() {
     return <LoginScreen onLogin={handleLogin} message={logoutMessage} />;
   }
 
-  return <KDSDashboard token={token} onLogout={handleLogout} />;
+  return <KDSDashboard token={token} onLogout={handleLogout} scope={scope} />;
 }

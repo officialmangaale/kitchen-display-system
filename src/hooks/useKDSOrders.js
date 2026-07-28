@@ -8,7 +8,7 @@ import {
   orderKey,
   sortOrders,
 } from '../utils/orderUtils';
-import { KDS_POLL_INTERVAL_MS, TOKEN_KEY } from '../utils/constants';
+import { TOKEN_KEY } from '../utils/constants';
 
 /**
  * Main KDS orders state management hook.
@@ -18,7 +18,7 @@ import { KDS_POLL_INTERVAL_MS, TOKEN_KEY } from '../utils/constants';
  * @param {function} addToast - toast function
  * @param {function} onUnauthorized - callback for 401
  */
-export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrderEvent) {
+export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrderEvent, scope = {}) {
   const [ordersMap, setOrdersMap] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,7 +72,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
       setError(null);
 
       try {
-        const orders = await getOrders({ token, stationId });
+        const orders = await getOrders({ token, stationId, scope });
         if (!mountedRef.current) return;
 
         const map = new Map();
@@ -96,7 +96,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
         if (mountedRef.current) setLoading(false);
       }
     },
-    [token, stationId, handleApiError]
+    [token, stationId, scope, handleApiError]
   );
 
   // Load orders on mount and when station changes
@@ -106,16 +106,6 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadOrders]);
-
-  // SSE is the primary low-latency path; polling reconciles missed events and
-  // keeps the board current when a proxy or network interrupts the stream.
-  useEffect(() => {
-    if (!token) return undefined;
-    const interval = window.setInterval(() => {
-      loadOrders(false);
-    }, KDS_POLL_INTERVAL_MS);
-    return () => window.clearInterval(interval);
-  }, [token, loadOrders]);
 
   const upsertOrder = useCallback((order) => {
     const normalized = normalizeOrder(order);
@@ -141,6 +131,43 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
     setOrdersMap(next);
   }, []);
 
+  const replaceOrders = useCallback((orders) => {
+    const next = new Map();
+    (Array.isArray(orders) ? orders : [])
+      .map(normalizeOrder)
+      .filter((order) => order?.id && isActiveKDSStatus(order.status))
+      .forEach((order) => next.set(order.id, order));
+    const events = getOrderAlertEvents(
+      ordersMapRef.current,
+      next,
+      initializedRef.current,
+    );
+    ordersMapRef.current = next;
+    setOrdersMap(next);
+    initializedRef.current = true;
+    setLoading(false);
+    events.forEach((event) => onOrderEventRef.current?.(event));
+  }, []);
+
+  const updateCustomerDetails = useCallback((payload) => {
+    const key = orderKey(payload?.order_id || payload?.orderId);
+    if (!key) return;
+    const next = new Map(ordersMapRef.current);
+    const current = next.get(key);
+    if (!current) return;
+    next.set(key, {
+      ...current,
+      ...(Object.prototype.hasOwnProperty.call(payload, 'customer_name')
+        ? {
+            customer_name: payload.customer_name,
+            customerName: payload.customer_name,
+          }
+        : {}),
+    });
+    ordersMapRef.current = next;
+    setOrdersMap(next);
+  }, []);
+
   const updateStatus = useCallback(
     async (orderId, status) => {
       if (!token) return;
@@ -148,7 +175,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
       setUpdatingIds((prev) => new Set(prev).add(orderId));
 
       try {
-        const updated = await updateOrderStatus({ token, orderId, status });
+        const updated = await updateOrderStatus({ token, orderId, status, scope });
         if (!mountedRef.current) return;
 
         if (updated && isTerminalKDSStatus(updated.status)) {
@@ -176,7 +203,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
         }
       }
     },
-    [token, upsertOrder, removeOrder, loadOrders, handleApiError, addToast]
+    [token, scope, upsertOrder, removeOrder, loadOrders, handleApiError, addToast]
   );
 
   const addNote = useCallback(
@@ -184,7 +211,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
       if (!token) return;
 
       try {
-        await addKitchenNote({ token, orderId, note });
+        await addKitchenNote({ token, orderId, note, scope });
         if (!mountedRef.current) return;
         addToast?.('Note added', 'success');
         // Reload to get updated notes from backend
@@ -195,7 +222,7 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
         throw err; // Re-throw for modal to handle
       }
     },
-    [token, handleApiError, addToast, loadOrders]
+    [token, scope, handleApiError, addToast, loadOrders]
   );
 
   const refresh = useCallback(() => loadOrders(false), [loadOrders]);
@@ -216,6 +243,8 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
     loadOrders,
     upsertOrder,
     removeOrder,
+    replaceOrders,
+    updateCustomerDetails,
     updateStatus,
     addNote,
     refresh,

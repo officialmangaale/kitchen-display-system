@@ -6,7 +6,7 @@
 /* KDS AUDIT SUMMARY
  * CSS framework in use: Tailwind CSS v4
  * State management: useState + custom hooks
- * Order data source: SSE (useKDSStream) + polling fallback (useKDSOrders)
+ * Order data source: authenticated WebSocket deltas + reconnect snapshots
  * Order data shape: Object with id, status, items, etc.
  * Component that renders order cards: OrderCard.jsx
  * Component that renders filter tabs: StatusFilter.jsx

@@ -6,8 +6,6 @@ export const BASE_URL =
 export const TOKEN_KEY = 'jwt_token';
 export const USER_ROLE_KEY = 'user_role';
 export const USER_NAME_KEY = 'user_name';
-export const KDS_POLL_INTERVAL_MS = 15000;
-
 export const ACTIVE_STATUSES = ['CONFIRMED', 'PREPARING', 'READY'];
 export const TERMINAL_STATUSES = [
   'COMPLETED',

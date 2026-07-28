@@ -17,8 +17,9 @@ import FullscreenTip from './FullscreenTip';
 import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
 import { playOrderAlert, unlockAudio } from '../utils/sound';
 import { OfflineBanner } from './ConnectionStatus';
+import { getCounter } from '../api/kdsApi';
 
-export default function KDSDashboard({ token, onLogout }) {
+export default function KDSDashboard({ token, onLogout, scope }) {
   const clock = useClock(30000);
   const { toasts, addToast, removeToast } = useToast();
   const { isFullscreen, toggleFullscreen } = useFullscreen();
@@ -30,6 +31,24 @@ export default function KDSDashboard({ token, onLogout }) {
   const [refreshing, setRefreshing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
+  const [counterName, setCounterName] = useState(
+    scope.counterId ? `Counter ${scope.counterId}` : 'All Counters',
+  );
+
+  useEffect(() => {
+    if (!scope.counterId) return undefined;
+    let active = true;
+    getCounter({ token, counterId: scope.counterId })
+      .then((counter) => {
+        if (active && counter) {
+          setCounterName(counter.display_name || counter.counter_name || `Counter ${scope.counterId}`);
+        }
+      })
+      .catch((error) => {
+        console.error('Unable to load KDS counter label', error);
+      });
+    return () => { active = false; };
+  }, [scope.counterId, token]);
   
   // TV Mode default based on screen width
   const [isTvMode, setIsTvMode] = useState(() => {
@@ -72,6 +91,8 @@ export default function KDSDashboard({ token, onLogout }) {
     updatingIds,
     upsertOrder,
     removeOrder,
+    replaceOrders,
+    updateCustomerDetails,
     updateStatus,
     addNote,
     refresh,
@@ -82,14 +103,19 @@ export default function KDSDashboard({ token, onLogout }) {
     addToast,
     handleUnauthorized,
     handleOrderEvent,
+    scope,
   ); // Load all stations from backend, filter locally
 
-  // SSE callbacks
-  const sseCallbacks = {
+  const streamCallbacks = {
     onConnected: useCallback(() => {
       setConnectionStatus('connected');
-      refresh();
-    }, [refresh]),
+    }, []),
+    onSnapshot: useCallback(
+      (snapshotOrders) => {
+        replaceOrders(snapshotOrders);
+      },
+      [replaceOrders]
+    ),
     onOrderNew: useCallback(
       (order) => {
         upsertOrder(order);
@@ -108,13 +134,17 @@ export default function KDSDashboard({ token, onLogout }) {
       },
       [removeOrder]
     ),
+    onCustomerDetailsUpdated: useCallback(
+      (payload) => updateCustomerDetails(payload),
+      [updateCustomerDetails]
+    ),
     onError: useCallback(() => {
-      setConnectionStatus('polling');
+      setConnectionStatus('reconnecting');
     }, []),
     addToast,
   };
 
-  useKDSStream(token, sseCallbacks);
+  useKDSStream(token, scope, streamCallbacks);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -233,6 +263,7 @@ export default function KDSDashboard({ token, onLogout }) {
         soundEnabled={soundEnabled}
         soundMuted={soundMuted}
         onToggleSound={handleToggleSound}
+        counterName={counterName}
       />
 
       <div className="fixed top-[64px] left-0 right-0 z-40 flex items-center justify-between px-6 bg-kds-surface border-b border-kds-border h-[56px] select-none shadow-sm">

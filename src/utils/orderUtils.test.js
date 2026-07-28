@@ -66,7 +66,7 @@ test('initial order hydration never emits sound events', () => {
   assert.deepEqual(getOrderAlertEvents(new Map(), next, false), []);
 });
 
-test('new confirmed order emits once and polling duplicate stays silent', () => {
+test('new confirmed order emits once and repeated event stays silent', () => {
   const confirmed = order('ord-4', 'confirmed');
   const next = new Map([['ord-4', confirmed]]);
   assert.deepEqual(
