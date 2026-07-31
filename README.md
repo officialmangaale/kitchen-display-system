@@ -1,6 +1,6 @@
 # Mangaale KDS Frontend
 
-Kitchen Display System for restaurant operations with SSE updates, polling reconciliation, SLA monitoring, status filters, and station filtering when station assignments exist.
+Kitchen Display System for restaurant operations with authenticated WebSocket updates, polling reconciliation, SLA monitoring, status filters, and station filtering when station assignments exist.
 
 ## Setup
 
@@ -27,7 +27,7 @@ Sign in with a restaurant user that has the `manage_orders` permission. The shar
 | GET | `/kds/orders?stationId=grill` | Filter by configured station |
 | PATCH | `/kds/orders/:id/status` | Update canonical order status |
 | POST | `/kds/orders/:id/note` | Add kitchen note |
-| GET | `/kds/events?token=<jwt>` | SSE realtime stream |
+| GET | `/ws/restaurants/orders?token=<jwt>` | Restaurant/counter-scoped WebSocket stream |
 
 Order IDs in responses include strings such as `ord-482`; mutation endpoints use numeric IDs.
 
@@ -37,7 +37,7 @@ Order IDs in responses include strings such as `ord-482`; mutation endpoints use
 CONFIRMED -> PREPARING -> READY -> COMPLETED
 ```
 
-`ready_to_serve` is accepted as an alias for canonical backend value `ready`. The active board is reconciled every 15 seconds if SSE is interrupted. Initial load is silent; a new confirmed ticket and a transition to ready alert once after sound is enabled by a user gesture.
+`ready_to_serve` is accepted as an alias for canonical backend value `ready`. The active board is reconciled every 15 seconds while the WebSocket is interrupted, and hidden tabs do not issue polling requests. Initial load is silent; a new confirmed ticket and a transition to ready alert once after sound is enabled by a user gesture.
 
 ## Verification
 

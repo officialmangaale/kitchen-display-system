@@ -29,7 +29,9 @@ export default function EmptyKitchen({ connectionStatus }) {
             <span>
               {connectionStatus === 'connected'
                 ? 'Listening for new orders…'
-                : 'Waiting for connection…'}
+                : connectionStatus === 'polling'
+                  ? 'Checking for orders every 15 seconds…'
+                  : 'Waiting for connection…'}
             </span>
           </div>
         )}

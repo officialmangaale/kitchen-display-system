@@ -18,6 +18,11 @@ import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
 import { playOrderAlert, unlockAudio } from '../utils/sound';
 import { OfflineBanner } from './ConnectionStatus';
 import { getCounter } from '../api/kdsApi';
+import {
+  FALLBACK_POLL_ACTIVATION_DELAY_MS,
+  FALLBACK_POLL_INTERVAL_MS,
+  shouldPollOrders,
+} from '../utils/realtime';
 
 export default function KDSDashboard({ token, onLogout, scope }) {
   const clock = useClock(30000);
@@ -26,7 +31,7 @@ export default function KDSDashboard({ token, onLogout, scope }) {
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [stationId, setStationId] = useState('all');
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState('reconnecting');
   const [noteModal, setNoteModal] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -139,12 +144,61 @@ export default function KDSDashboard({ token, onLogout, scope }) {
       [updateCustomerDetails]
     ),
     onError: useCallback(() => {
-      setConnectionStatus('reconnecting');
+      setConnectionStatus((current) => current === 'polling' ? current : 'reconnecting');
     }, []),
     addToast,
   };
 
   useKDSStream(token, scope, streamCallbacks);
+
+  const socketConnected = connectionStatus === 'connected';
+
+  // Reconcile through REST while the WebSocket reconnects. Polling shares the
+  // same idempotent order map as WS frames, so reconnect snapshots cannot
+  // duplicate tickets or alert sounds.
+  useEffect(() => {
+    if (socketConnected || !token) return undefined;
+
+    let active = true;
+    let inFlight = false;
+
+    const poll = async () => {
+      if (
+        !active ||
+        inFlight ||
+        !shouldPollOrders('polling', document.visibilityState)
+      ) {
+        return;
+      }
+      inFlight = true;
+      try {
+        await refresh();
+        if (active) {
+          setConnectionStatus((current) => current === 'connected' ? current : 'polling');
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const activationTimer = window.setTimeout(() => {
+      void poll();
+    }, FALLBACK_POLL_ACTIVATION_DELAY_MS);
+    const interval = window.setInterval(() => {
+      void poll();
+    }, FALLBACK_POLL_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void poll();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      active = false;
+      window.clearTimeout(activationTimer);
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refresh, socketConnected, token]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);

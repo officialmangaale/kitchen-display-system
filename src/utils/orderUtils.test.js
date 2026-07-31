@@ -8,6 +8,11 @@ import {
   isTerminalKDSStatus,
   normalizeOrder,
 } from './orderUtils.js';
+import {
+  FALLBACK_POLL_INTERVAL_MS,
+  connectionStatusLabel,
+  shouldPollOrders,
+} from './realtime.js';
 
 function order(id, status) {
   return normalizeOrder({
@@ -84,4 +89,18 @@ test('transition to ready emits once and reconnect duplicate stays silent', () =
     ['ready'],
   );
   assert.deepEqual(getOrderAlertEvents(ready, new Map(ready), true), []);
+});
+
+test('disconnected KDS uses a 15 second visible-tab polling fallback', () => {
+  assert.equal(FALLBACK_POLL_INTERVAL_MS, 15_000);
+  assert.equal(shouldPollOrders('reconnecting', 'visible'), true);
+  assert.equal(shouldPollOrders('polling', 'visible'), true);
+  assert.equal(shouldPollOrders('connected', 'visible'), false);
+  assert.equal(shouldPollOrders('polling', 'hidden'), false);
+});
+
+test('connection labels distinguish reconnecting from polling fallback', () => {
+  assert.equal(connectionStatusLabel('connected'), 'LIVE');
+  assert.equal(connectionStatusLabel('reconnecting'), 'RECONNECTING...');
+  assert.equal(connectionStatusLabel('polling'), 'POLLING FALLBACK');
 });
