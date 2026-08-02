@@ -6,6 +6,7 @@ import {
   normalizeOrder,
   orderKey,
 } from '../utils/orderUtils';
+import { buildKDSWebSocketUrl } from '../utils/websocketUrl';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const MAX_SEEN_EVENT_IDS = 2_000;
@@ -50,16 +51,7 @@ class LobbyWebSocketManager {
   }
 
   socketUrl() {
-    const url = new URL('/ws/restaurants/orders', BASE_URL);
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    url.searchParams.set('token', this.options.token);
-    if (this.options.scope.restaurantId) {
-      url.searchParams.set('restaurant_id', this.options.scope.restaurantId);
-    }
-    if (this.options.scope.counterId) {
-      url.searchParams.set('counter_id', this.options.scope.counterId);
-    }
-    return url.toString();
+    return buildKDSWebSocketUrl(this.options.token, this.options.scope, BASE_URL, window.location.origin);
   }
 
   connect() {

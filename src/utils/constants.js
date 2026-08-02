@@ -1,7 +1,7 @@
 const viteEnv = import.meta.env || {};
 
 export const BASE_URL =
-  viteEnv.VITE_API_BASE_URL || 'https://restaurant-prod.mangaale.com';
+  viteEnv.VITE_API_BASE_URL || '';
 
 export const TOKEN_KEY = 'jwt_token';
 export const USER_ROLE_KEY = 'user_role';

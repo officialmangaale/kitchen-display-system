@@ -1,17 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { BASE_URL } from '../utils/constants';
 import { isActiveKDSStatus, isTerminalKDSStatus, normalizeOrder } from '../utils/orderUtils';
+import { buildKDSWebSocketUrl as buildKDSWebSocketUrlRaw } from '../utils/websocketUrl';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const MAX_SEEN_EVENT_IDS = 2_000;
 
-function websocketUrl(token, scope) {
-  const url = new URL('/ws/restaurants/orders', BASE_URL);
-  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  url.searchParams.set('token', token);
-  if (scope?.restaurantId) url.searchParams.set('restaurant_id', scope.restaurantId);
-  if (scope?.counterId) url.searchParams.set('counter_id', scope.counterId);
-  return url.toString();
+export function buildKDSWebSocketUrl(token, scope, baseURL = BASE_URL) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  return buildKDSWebSocketUrlRaw(token, scope, baseURL, origin);
 }
 
 /**
@@ -48,7 +45,7 @@ export function useKDSStream(token, scope, callbacks) {
     window.clearTimeout(reconnectTimerRef.current);
     socketRef.current?.close();
 
-    const socket = new WebSocket(websocketUrl(token, scope));
+    const socket = new WebSocket(buildKDSWebSocketUrl(token, scope));
     socketRef.current = socket;
 
     socket.onopen = () => {

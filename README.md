@@ -13,11 +13,12 @@ Set the backend URL with:
 
 ```text
 VITE_API_BASE_URL=https://restaurant-prod.mangaale.com
+VITE_USER_SERVICE_BASE_URL=https://user-prod.mangaale.com
 ```
 
 ## Authentication
 
-Sign in with a restaurant user that has the `manage_orders` permission. The shared user-service JWT is stored as `jwt_token` and is used for REST and SSE authentication.
+Sign in with a restaurant user that has the `manage_orders` permission. The shared user-service JWT is stored as `jwt_token` and is used for REST and WebSocket authentication.
 
 ## Backend API
 
