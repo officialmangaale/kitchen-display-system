@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN test -n "$VITE_API_BASE_URL" && test -n "$VITE_WS_BASE_URL" && test -n "$VITE_USER_SERVICE_BASE_URL"
 RUN npm run build
 
 # Stage 2: Serve
