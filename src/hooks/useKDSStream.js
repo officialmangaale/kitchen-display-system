@@ -1,14 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { BASE_URL } from '../utils/constants';
+import { WS_BASE_URL } from '../utils/constants';
 import { isActiveKDSStatus, isTerminalKDSStatus, normalizeOrder } from '../utils/orderUtils';
 import { buildKDSWebSocketUrl as buildKDSWebSocketUrlRaw } from '../utils/websocketUrl';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const MAX_SEEN_EVENT_IDS = 2_000;
 
-export function buildKDSWebSocketUrl(token, scope, baseURL = BASE_URL) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-  return buildKDSWebSocketUrlRaw(token, scope, baseURL, origin);
+export function buildKDSWebSocketUrl(token, scope, baseURL = WS_BASE_URL) {
+  return buildKDSWebSocketUrlRaw(token, scope, baseURL);
 }
 
 /**
@@ -45,7 +44,13 @@ export function useKDSStream(token, scope, callbacks) {
     window.clearTimeout(reconnectTimerRef.current);
     socketRef.current?.close();
 
-    const socket = new WebSocket(buildKDSWebSocketUrl(token, scope));
+    let socket;
+    try {
+      socket = new WebSocket(buildKDSWebSocketUrl(token, scope));
+    } catch (error) {
+      callbacksRef.current.onError?.(error);
+      return;
+    }
     socketRef.current = socket;
 
     socket.onopen = () => {

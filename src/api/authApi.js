@@ -1,8 +1,9 @@
-const USER_SERVICE_BASE_URL = import.meta.env?.VITE_USER_SERVICE_BASE_URL || '';
+import { USER_SERVICE_BASE_URL } from '../utils/constants';
+import { getConfiguredServiceBase } from '../utils/serviceConfig';
+import { readServiceResponse } from './response';
 
 export async function loginUser({ email, password }) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-  const loginURL = new URL(USER_SERVICE_BASE_URL || origin, origin);
+  const loginURL = new URL(getConfiguredServiceBase(USER_SERVICE_BASE_URL, 'User service base URL'));
   loginURL.pathname = `${loginURL.pathname.replace(/\/+$/, '')}/users/login`;
   const res = await fetch(loginURL.toString(), {
     method: "POST",
@@ -15,7 +16,7 @@ export async function loginUser({ email, password }) {
     }),
   });
 
-  const data = await res.json();
+  const data = await readServiceResponse(res, 'User service');
 
   if (!res.ok || data.status !== "success") {
     throw new Error(data.message || "Login failed");

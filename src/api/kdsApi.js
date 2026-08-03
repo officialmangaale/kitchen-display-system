@@ -1,6 +1,8 @@
 import { BASE_URL } from '../utils/constants';
 import { extractNumericOrderId, normalizeOrder } from '../utils/orderUtils';
 import { appendScope } from '../utils/scope';
+import { readServiceResponse } from './response';
+import { getConfiguredServiceBase } from '../utils/serviceConfig';
 
 /**
  * Shared request helper
@@ -18,26 +20,12 @@ async function request(path, { token, method = 'GET', body } = {}) {
     opts.body = JSON.stringify(body);
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, opts);
+  const baseURL = getConfiguredServiceBase(BASE_URL, 'KDS REST API base URL');
+  const res = await fetch(`${baseURL}${path}`, opts);
 
-  if (!res.ok) {
-    let errorData = {};
-    try {
-      errorData = await res.json();
-    } catch {
-      // response may not be JSON
-    }
-    const err = new Error(errorData.message || `Request failed (${res.status})`);
-    err.status = res.status;
-    err.code = errorData.error || 'UNKNOWN_ERROR';
-    err.message = errorData.message || err.message;
-    throw err;
-  }
-
-  // Handle 204 No Content
+  // Handle 204 No Content without requiring a body or content type.
   if (res.status === 204) return null;
-
-  return res.json();
+  return readServiceResponse(res, 'KDS REST API');
 }
 
 /**

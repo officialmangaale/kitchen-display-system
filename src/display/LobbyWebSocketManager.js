@@ -1,4 +1,4 @@
-import { BASE_URL } from '../utils/constants';
+import { WS_BASE_URL } from '../utils/constants';
 import { getOrders } from '../api/kdsApi';
 import {
   isActiveKDSStatus,
@@ -51,14 +51,20 @@ class LobbyWebSocketManager {
   }
 
   socketUrl() {
-    return buildKDSWebSocketUrl(this.options.token, this.options.scope, BASE_URL, window.location.origin);
+    return buildKDSWebSocketUrl(this.options.token, this.options.scope, WS_BASE_URL);
   }
 
   connect() {
     if (this.stopped || !this.options?.token) return;
     window.clearTimeout(this.reconnectTimer);
     this.notify({ type: 'connection', status: 'CONNECTING' });
-    const socket = new WebSocket(this.socketUrl());
+    let socket;
+    try {
+      socket = new WebSocket(this.socketUrl());
+    } catch (error) {
+      this.notify({ type: 'connection', status: 'DISCONNECTED', error });
+      return;
+    }
     this.socket = socket;
 
     socket.onopen = () => {

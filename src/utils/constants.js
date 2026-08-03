@@ -2,6 +2,13 @@ const viteEnv = import.meta.env || {};
 
 export const BASE_URL =
   viteEnv.VITE_API_BASE_URL || '';
+// Keep REST and WebSocket origins independently configurable. Falling back
+// from WS to a configured REST origin is safe; falling back to window.origin
+// is not, because the KDS host serves an SPA rather than the API.
+export const WS_BASE_URL =
+  viteEnv.VITE_WS_BASE_URL || BASE_URL;
+export const USER_SERVICE_BASE_URL =
+  viteEnv.VITE_USER_SERVICE_BASE_URL || '';
 
 export const TOKEN_KEY = 'jwt_token';
 export const USER_ROLE_KEY = 'user_role';

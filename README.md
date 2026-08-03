@@ -13,8 +13,15 @@ Set the backend URL with:
 
 ```text
 VITE_API_BASE_URL=https://restaurant-prod.mangaale.com
+VITE_WS_BASE_URL=https://restaurant-prod.mangaale.com
 VITE_USER_SERVICE_BASE_URL=https://user-prod.mangaale.com
 ```
+
+`VITE_API_BASE_URL` and `VITE_WS_BASE_URL` are build-time values. They must
+point to the restaurant service, not `kds.mangaale.com`; a missing value is a
+configuration error and is never replaced with the browser origin. HTTPS
+deployments should use `https://` for both values; the WebSocket URL builder
+converts the configured scheme to `wss://`.
 
 ## Authentication
 

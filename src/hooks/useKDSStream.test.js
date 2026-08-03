@@ -20,3 +20,10 @@ test('KDS converts HTTP service URL to WS', () => {
     'ws://localhost:8082/ws/restaurants/orders?token=token',
   );
 });
+
+test('KDS never falls back to the static frontend origin', () => {
+  assert.throws(
+    () => buildKDSWebSocketUrl('token', {}, ''),
+    (error) => error.code === 'CONFIGURATION_ERROR',
+  );
+});
