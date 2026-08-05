@@ -301,7 +301,7 @@ export default function KDSDashboard({ token, onLogout, scope }) {
     });
 
   return (
-    <div className={`min-h-screen bg-kds-bg text-kds-text flex flex-col pt-[120px] ${isTvMode ? 'tv-mode' : ''}`}>
+    <div className={`h-screen h-[100dvh] overflow-hidden bg-kds-bg text-kds-text flex flex-col pt-[120px] ${isTvMode ? 'tv-mode' : ''}`}>
       <OfflineBanner status={connectionStatus} />
       
       <KDSHeader
@@ -338,7 +338,7 @@ export default function KDSDashboard({ token, onLogout, scope }) {
         </div>
       </div>
 
-      <main className="flex-1 p-6 overflow-x-hidden">
+      <main className="kds-order-scroll flex-1 min-h-0 p-6 overflow-x-hidden overflow-y-auto overscroll-contain">
         <FullscreenTip isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         
         <ErrorBanner error={error} onRetry={() => loadOrders()} />
