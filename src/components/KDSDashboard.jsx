@@ -7,6 +7,8 @@ import { useKDSStream } from '../hooks/useKDSStream';
 import KDSHeader from './KDSHeader';
 import StatusFilter from './StatusFilter';
 import StationFilter from './StationFilter';
+import KitchenSummary from './KitchenSummary';
+import DineInToggle from './DineInToggle';
 import OrderCard from './OrderCard';
 import SkeletonGrid from './SkeletonGrid';
 import EmptyKitchen from './EmptyKitchen';
@@ -61,6 +63,20 @@ export default function KDSDashboard({ token, onLogout, scope }) {
     if (saved !== null) return saved === 'true';
     return window.innerWidth > 1400;
   });
+
+  // Read-only Dine-In display mode. Purely presentational: no API calls, no
+  // effect on order state — it only changes what each card renders.
+  const [dineInView, setDineInView] = useState(
+    () => localStorage.getItem('kds_dine_in_view') === 'true',
+  );
+
+  const toggleDineInView = useCallback(() => {
+    setDineInView((prev) => {
+      const next = !prev;
+      localStorage.setItem('kds_dine_in_view', String(next));
+      return next;
+    });
+  }, []);
 
   const toggleTvMode = useCallback(() => {
     setIsTvMode((prev) => {
@@ -320,25 +336,32 @@ export default function KDSDashboard({ token, onLogout, scope }) {
         counterName={counterName}
       />
 
-      <div className="fixed top-[64px] left-0 right-0 z-40 flex items-center justify-between px-6 bg-kds-surface border-b border-kds-border h-[56px] select-none shadow-sm">
-        <div className="flex items-center overflow-x-auto no-scrollbar">
-          <StatusFilter 
-            selected={statusFilter} 
-            onChange={setStatusFilter} 
-            orders={Array.from(ordersMap.values())} 
+      <div className="fixed top-[64px] left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 sm:px-6 xl:px-7 bg-kds-surface border-b border-kds-border h-[56px] select-none">
+        <div className="flex items-center gap-3 xl:gap-4 min-w-0 overflow-x-auto no-scrollbar">
+          <StatusFilter
+            selected={statusFilter}
+            onChange={setStatusFilter}
+            orders={Array.from(ordersMap.values())}
           />
           <StationFilter
             selected={stationId}
             onChange={setStationId}
             orders={Array.from(ordersMap.values())}
           />
+          <div className="hidden lg:block">
+            <KitchenSummary orders={Array.from(ordersMap.values())} />
+          </div>
         </div>
-        <div className="text-[13px] font-medium text-kds-text-3 whitespace-nowrap pl-4 hidden md:block">
-          Orders today: {orders.length}
+        <div className="flex items-center gap-3 xl:gap-5 shrink-0">
+          <span className="text-[13px] font-medium text-kds-text-2 whitespace-nowrap hidden lg:block">
+            Orders today: <span className="font-semibold text-kds-text tabular-nums">{orders.length}</span>
+          </span>
+          <span className="w-px h-[22px] bg-kds-border hidden lg:block" />
+          <DineInToggle enabled={dineInView} onToggle={toggleDineInView} />
         </div>
       </div>
 
-      <main className="kds-order-scroll flex-1 min-h-0 p-6 overflow-x-hidden overflow-y-auto overscroll-contain">
+      <main className="kds-order-scroll flex-1 min-h-0 p-4 sm:p-6 xl:py-7 xl:px-8 overflow-x-hidden overflow-y-auto overscroll-contain">
         <FullscreenTip isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         
         <ErrorBanner error={error} onRetry={() => loadOrders()} />
@@ -348,17 +371,23 @@ export default function KDSDashboard({ token, onLogout, scope }) {
         ) : visibleOrders.length === 0 && !error ? (
           <EmptyKitchen connectionStatus={connectionStatus} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 auto-rows-max items-start">
+          <div
+            className={`grid auto-rows-max items-start ${
+              dineInView
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-[22px]'
+                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 lg:gap-[22px]'
+            }`}
+          >
             {visibleOrders.map((order) => (
-              <div key={order.id} className="h-full">
-                <OrderCard
-                  order={order}
-                  isUpdating={updatingIds.has(order.id)}
-                  onStatusChange={handleStatusChange}
-                  onAddNote={handleAddNote}
-                  clock={clock}
-                />
-              </div>
+              <OrderCard
+                key={order.id}
+                order={order}
+                isUpdating={updatingIds.has(order.id)}
+                onStatusChange={handleStatusChange}
+                onAddNote={handleAddNote}
+                clock={clock}
+                dineIn={dineInView}
+              />
             ))}
           </div>
         )}

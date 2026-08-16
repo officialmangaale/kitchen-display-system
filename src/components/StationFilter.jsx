@@ -18,10 +18,10 @@ export default function StationFilter({ selected, onChange, orders }) {
           key={station.id}
           role="tab"
           aria-selected={selected === station.id}
-          className={`flex items-center h-[32px] px-4 rounded-full text-[13px] font-semibold whitespace-nowrap border transition-all duration-200 ${
-            selected === station.id 
-              ? 'bg-kds-new text-white border-kds-new' 
-              : 'bg-kds-surface-2 border-kds-border text-kds-text-2 hover:bg-kds-surface-3 hover:text-kds-text'
+          className={`flex items-center h-[36px] px-4 rounded-full text-[13px] font-semibold whitespace-nowrap border transition-all duration-200 ${
+            selected === station.id
+              ? 'bg-kds-new-bg border-blue-200 text-kds-new'
+              : 'bg-kds-surface border-kds-border text-kds-text-2 hover:bg-kds-surface-2 hover:border-kds-border-2 hover:text-kds-text'
           }`}
           onClick={() => onChange(station.id)}
         >
