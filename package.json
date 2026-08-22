@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test src/utils/orderUtils.test.js src/hooks/useKDSStream.test.js src/utils/serviceConfig.test.js src/api/response.test.js",
+    "test": "node --test src/utils/orderUtils.test.js src/utils/prepTimer.test.js src/hooks/useKDSStream.test.js src/utils/serviceConfig.test.js src/api/response.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

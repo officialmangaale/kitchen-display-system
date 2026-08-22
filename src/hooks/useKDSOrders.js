@@ -1,5 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { getOrders, updateOrderStatus, addKitchenNote } from '../api/kdsApi';
+import {
+  getOrders,
+  updateOrderStatus,
+  addKitchenNote,
+  updatePrepTimer as updatePrepTimerRequest,
+} from '../api/kdsApi';
 import {
   isActiveKDSStatus,
   isTerminalKDSStatus,
@@ -8,6 +13,7 @@ import {
   orderKey,
   sortOrders,
 } from '../utils/orderUtils';
+import { readPrepTimerFields } from '../utils/prepTimer';
 import { TOKEN_KEY } from '../utils/constants';
 
 /**
@@ -23,6 +29,9 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingIds, setUpdatingIds] = useState(new Set());
+  // Tracked apart from updatingIds so a pending timer write only busies the
+  // timer control, leaving the status action and the rest of the board usable.
+  const [timerUpdatingIds, setTimerUpdatingIds] = useState(new Set());
   const mountedRef = useRef(true);
   const ordersMapRef = useRef(new Map());
   const initializedRef = useRef(false);
@@ -206,6 +215,81 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
     [token, scope, upsertOrder, removeOrder, loadOrders, handleApiError, addToast]
   );
 
+  /**
+   * Merge server-confirmed timer fields into the order already on the board.
+   *
+   * Only the timer columns are taken from the response: it comes from the
+   * shared order endpoint, whose payload shape is not the KDS order contract,
+   * so adopting it wholesale would overwrite items and identifiers the card
+   * depends on. Everything else keeps arriving through the normal WebSocket
+   * and polling reconciliation.
+   */
+  const applyPrepTimer = useCallback((orderId, fields) => {
+    const key = orderKey(orderId);
+    const current = ordersMapRef.current.get(key);
+    if (!current) return;
+    const next = new Map(ordersMapRef.current);
+    next.set(key, { ...current, ...fields });
+    ordersMapRef.current = next;
+    setOrdersMap(next);
+  }, []);
+
+  /**
+   * Set, change or clear an order's preparation timer.
+   *
+   * Nothing is written locally before the backend confirms, so a failure needs
+   * no rollback: the card keeps showing the last persisted timer. A
+   * `durationSeconds` of 0 removes the scheduled auto-ready.
+   */
+  const updatePrepTimer = useCallback(
+    async (orderId, durationSeconds) => {
+      if (!token) return;
+
+      setTimerUpdatingIds((prev) => new Set(prev).add(orderId));
+
+      try {
+        const response = await updatePrepTimerRequest({ token, orderId, durationSeconds });
+        if (!mountedRef.current) return;
+
+        const fields = readPrepTimerFields(response);
+        if (fields) {
+          applyPrepTimer(orderId, fields);
+        } else {
+          // The response said nothing about the timer; reconcile rather than
+          // render a countdown we cannot vouch for.
+          loadOrders(false);
+        }
+
+        addToast?.(
+          durationSeconds > 0
+            ? `Ready timer set to ${Math.round(durationSeconds / 60)} min`
+            : 'Ready timer removed',
+          'success',
+        );
+      } catch (err) {
+        if (!mountedRef.current) return;
+
+        // A conflict is the expected outcome when the order moved on underneath
+        // us: the backend sweeper fired, or another device marked it ready.
+        if (err.status === 404) {
+          removeOrder(orderId);
+        } else if (err.status === 409 || err.status === 400) {
+          loadOrders(false);
+        }
+        handleApiError(err, 'Timer update');
+      } finally {
+        if (mountedRef.current) {
+          setTimerUpdatingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(orderId);
+            return next;
+          });
+        }
+      }
+    },
+    [token, applyPrepTimer, removeOrder, loadOrders, handleApiError, addToast]
+  );
+
   const addNote = useCallback(
     async (orderId, note) => {
       if (!token) return;
@@ -240,12 +324,14 @@ export function useKDSOrders(token, stationId, addToast, onUnauthorized, onOrder
     loading,
     error,
     updatingIds,
+    timerUpdatingIds,
     loadOrders,
     upsertOrder,
     removeOrder,
     replaceOrders,
     updateCustomerDetails,
     updateStatus,
+    updatePrepTimer,
     addNote,
     refresh,
   };

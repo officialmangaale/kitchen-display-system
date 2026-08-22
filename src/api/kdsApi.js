@@ -75,3 +75,25 @@ export async function getCounter({ token, counterId }) {
 export async function getDisplayConfig({ token, scope }) {
   return request(appendScope('/kds/display-config', scope), { token });
 }
+
+/**
+ * Set, change or clear an order's preparation ("auto-ready") timer.
+ *
+ * Deliberately the same endpoint and payload the Restaurant App already calls
+ * (`PATCH /orders/:id/timer` with `prep_duration_seconds`), so both surfaces
+ * write the one persisted `prep_auto_ready_at` and neither keeps a timer of its
+ * own. A duration of 0 cancels the scheduled auto-ready.
+ *
+ * Scope query parameters are intentionally omitted: this is the shared order
+ * endpoint, not a KDS-scoped one, and it authorizes by order ID under the same
+ * `manage_orders` permission the KDS status endpoint already requires.
+ */
+export async function updatePrepTimer({ token, orderId, durationSeconds }) {
+  const numId = extractNumericOrderId(orderId);
+  const seconds = Math.max(0, Math.round(Number(durationSeconds) || 0));
+  return request(`/orders/${numId}/timer`, {
+    token,
+    method: 'PATCH',
+    body: { prep_duration_seconds: seconds },
+  });
+}

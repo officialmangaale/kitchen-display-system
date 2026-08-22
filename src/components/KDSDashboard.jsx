@@ -110,11 +110,13 @@ export default function KDSDashboard({ token, onLogout, scope }) {
     loading,
     error,
     updatingIds,
+    timerUpdatingIds,
     upsertOrder,
     removeOrder,
     replaceOrders,
     updateCustomerDetails,
     updateStatus,
+    updatePrepTimer,
     addNote,
     refresh,
     loadOrders,
@@ -266,6 +268,13 @@ export default function KDSDashboard({ token, onLogout, scope }) {
     [updateStatus]
   );
 
+  const handlePrepTimerChange = useCallback(
+    (orderId, durationSeconds) => {
+      updatePrepTimer(orderId, durationSeconds);
+    },
+    [updatePrepTimer]
+  );
+
   const handleAddNote = useCallback((order) => {
     setNoteModal(order);
   }, []);
@@ -383,8 +392,10 @@ export default function KDSDashboard({ token, onLogout, scope }) {
                 key={order.id}
                 order={order}
                 isUpdating={updatingIds.has(order.id)}
+                isTimerUpdating={timerUpdatingIds.has(order.id)}
                 onStatusChange={handleStatusChange}
                 onAddNote={handleAddNote}
+                onPrepTimerChange={handlePrepTimerChange}
                 clock={clock}
                 dineIn={dineInView}
               />

@@ -1,4 +1,5 @@
 import { ACTIVE_STATUSES, TERMINAL_STATUSES } from './constants.js';
+import { readPrepTimerFields } from './prepTimer.js';
 
 /**
  * Extract numeric ID from order ID string like "ord-482" -> "482"
@@ -64,6 +65,10 @@ export function normalizeOrder(order) {
   const timerStartedAt = order.timerStartedAt || order.timer_started_at || order.placedAt || order.created_at;
   const timerStoppedAt = order.timerStoppedAt || order.timer_stopped_at || null;
 
+  // Preparation ("auto-ready") timer. The backend is the only writer; the card
+  // renders a countdown straight from prepAutoReadyAt without polling.
+  const prepTimer = readPrepTimerFields(order) || {};
+
   return {
     ...order,
     id: orderKey(id || order.number),
@@ -91,6 +96,9 @@ export function normalizeOrder(order) {
     notes: Array.isArray(order.notes) ? order.notes : [],
     chef: order.chef || null,
     slaMinutes: typeof order.slaMinutes === 'number' ? order.slaMinutes : 15,
+    prepTimerStart: prepTimer.prepTimerStart ?? null,
+    prepDurationSeconds: prepTimer.prepDurationSeconds ?? null,
+    prepAutoReadyAt: prepTimer.prepAutoReadyAt ?? null,
   };
 }
 

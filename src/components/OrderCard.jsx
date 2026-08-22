@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Loader2, StickyNote, Utensils, ChefHat, BellRing, Check, Bike, Clock, CircleCheck } from 'lucide-react';
 import TimerBadge, { TimerProgressBar } from './TimerBadge';
+import PrepTimerControl from './PrepTimerControl';
 import OrderItems from './OrderItems';
 import DineInItems from './DineInItems';
 import { STATUS_ACTIONS } from '../utils/constants';
@@ -72,8 +73,10 @@ const DINE_IN_STATUS_FALLBACK = {
 export default function OrderCard({
   order,
   isUpdating,
+  isTimerUpdating,
   onStatusChange,
   onAddNote,
+  onPrepTimerChange,
   clock, // unused but triggers re-render
   dineIn = false,
 }) {
@@ -249,6 +252,15 @@ export default function OrderCard({
 
       {/* Footer Actions */}
       <div className="flex flex-col px-5 pt-3 pb-3.5 border-t border-kds-border gap-1.5 shrink-0 mt-auto">
+        {/* Auto-ready countdown. Sits directly above Mark Ready because it is
+            the same decision — when this ticket is done — expressed as a
+            schedule instead of a tap. Renders nothing unless PREPARING. */}
+        <PrepTimerControl
+          order={order}
+          isUpdating={isTimerUpdating}
+          onChange={onPrepTimerChange}
+        />
+
         {order.status === 'READY' && isDelivery && (
           <div className="flex items-center justify-center gap-2 w-full h-[48px] rounded-xl bg-kds-ready-bg text-green-700 text-[13px] font-semibold border border-green-200">
             <Bike size={16} className="shrink-0" />
