@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Loader2, StickyNote, Utensils, ChefHat, BellRing, Check, Bike, Clock, CircleCheck } from 'lucide-react';
 import TimerBadge, { TimerProgressBar } from './TimerBadge';
-import PrepTimerControl from './PrepTimerControl';
+import PrepTimerControl, { PrepCountdownChip } from './PrepTimerControl';
 import OrderItems from './OrderItems';
 import DineInItems from './DineInItems';
 import { STATUS_ACTIONS } from '../utils/constants';
@@ -149,6 +149,11 @@ export default function OrderCard({
             )}
             <span className="truncate">{presentation.label}</span>
           </span>
+
+          {/* Read-only countdown, same value the kitchen card shows. Sits in
+              this row rather than a row of its own because the Dine-In card is
+              a fixed height and an extra row would clip the accent strip. */}
+          <PrepCountdownChip order={order} />
         </div>
 
         <div className="shrink-0 border-t border-kds-border mx-5" />

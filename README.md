@@ -66,6 +66,11 @@ WebSocket frame or polling refresh as any other status change, so a closed tab,
 a lost connection or a service restart cannot lose or double-apply it. The
 countdown is only ever shown while an order is `PREPARING`.
 
+The kitchen card carries the editable control (5 / 10 / 15 min, Remove). The
+read-only Dine-In card shows the same countdown as a chip beside the status, with
+no way to change it — it shares the fixed-height status row rather than adding a
+row of its own, so every Dine-In card stays exactly the same size.
+
 ## Verification
 
 ```bash

@@ -153,3 +153,33 @@ export default function PrepTimerControl({ order, isUpdating, onChange }) {
     </div>
   );
 }
+
+/**
+ * Read-only countdown chip for the customer-facing Dine-In card.
+ *
+ * Same persisted `prep_auto_ready_at` and same tick as the kitchen control —
+ * only the presentation differs, and there is deliberately no way to change or
+ * remove the timer from a customer-facing screen.
+ *
+ * Sized to match the neighbouring status chip so it costs the fixed-height
+ * Dine-In card no extra vertical space.
+ */
+export function PrepCountdownChip({ order }) {
+  const remaining = usePrepCountdown(order?.status, order?.prepAutoReadyAt);
+
+  if (!hasPrepTimer(order)) return null;
+
+  const expired = remaining === 0;
+  const chipClass = expired
+    ? 'bg-kds-surface-3 text-kds-text-2 border-kds-border'
+    : 'bg-kds-cooking-bg text-amber-700 border-amber-200';
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-lg border text-[13px] font-semibold whitespace-nowrap shrink-0 ${chipClass}`}
+    >
+      <Timer size={14} className="shrink-0" />
+      <span className="tabular-nums">Ready in {formatCountdown(remaining)}</span>
+    </span>
+  );
+}
