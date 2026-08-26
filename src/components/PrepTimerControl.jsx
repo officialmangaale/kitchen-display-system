@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Timer, TimerOff, TimerReset } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { usePrepCountdown } from '../hooks/usePrepCountdown';
 import {
   PREP_TIMER_PRESET_MINUTES,
@@ -14,9 +14,13 @@ import {
  * it. Rendered only on PREPARING orders — an order that has gone READY,
  * COMPLETED or CANCELLED shows nothing, however stale its timestamps are.
  *
- * The countdown is presentation only. Reaching 00:00 sends nothing: the backend
- * sweeper performs the PREPARING -> READY transition and the board picks it up
- * over the existing WebSocket/polling path.
+ * Presented as a line of type rather than a filled button: the countdown is
+ * information the kitchen reads at a glance, and only occasionally something it
+ * acts on, so it should not compete with Mark Ready directly beneath it.
+ *
+ * Reaching 00:00 sends nothing. The backend sweeper performs the
+ * PREPARING -> READY transition and the board picks it up over the existing
+ * WebSocket/polling path.
  */
 export default function PrepTimerControl({ order, isUpdating, onChange }) {
   const [menuRequested, setMenuRequested] = useState(false);
@@ -64,47 +68,44 @@ export default function PrepTimerControl({ order, isUpdating, onChange }) {
 
   const expired = timerActive && remaining === 0;
 
-  let triggerClass =
-    'flex items-center justify-center gap-2 w-full h-[36px] rounded-[10px] border text-[14px] font-semibold transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed ';
-  if (!timerActive) {
-    triggerClass +=
-      'bg-transparent border-dashed border-kds-border-2 text-kds-text-2 hover:bg-kds-surface-2 hover:text-kds-text';
-  } else if (expired) {
-    triggerClass += 'bg-kds-surface-3 border-kds-border text-kds-text-2';
-  } else {
-    triggerClass += 'bg-kds-cooking-bg border-amber-200 text-amber-700 hover:bg-amber-100';
-  }
-
-  // The countdown runs all the way down to 00:00 and stays there. Only the
-  // tint changes at zero, because a due timer is waiting on the backend rather
-  // than on the kitchen and should stop competing with live tickets.
-  const label = timerActive
-    ? `Ready in ${formatCountdown(remaining)}`
-    : 'Set ready timer';
-
-  const TriggerIcon = !timerActive ? TimerReset : Timer;
-
   return (
     <div ref={containerRef} className="relative shrink-0">
       <button
         type="button"
-        className={triggerClass}
+        className="flex items-center justify-between w-full h-[32px] px-1 rounded-[8px] text-left transition-colors duration-150 hover:bg-card-veil disabled:opacity-50 disabled:cursor-not-allowed"
         onClick={() => setMenuRequested((open) => !open)}
         disabled={isUpdating}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-label={
           timerActive
-            ? `Preparation timer, ${label}. Change or remove.`
+            ? `Preparation timer, ready in ${formatCountdown(remaining)}. Change or remove.`
             : 'Set preparation timer'
         }
       >
-        {isUpdating ? (
-          <Loader2 size={16} className="animate-spin shrink-0" />
-        ) : (
-          <TriggerIcon size={16} className="shrink-0" />
-        )}
-        <span className={timerActive ? 'tabular-nums' : ''}>{label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-card-ink-3">
+          {timerActive ? 'Ready in' : 'Ready timer'}
+        </span>
+
+        <span className="flex items-center gap-1.5">
+          {isUpdating ? (
+            <Loader2 size={15} className="animate-spin text-card-ink-3" />
+          ) : timerActive ? (
+            // The countdown runs all the way to 00:00 and stays there. Only the
+            // colour changes at zero, because a due timer is waiting on the
+            // backend rather than on the kitchen.
+            <span
+              className={`text-[22px] font-semibold leading-none tabular-nums tracking-[-0.03em] ${
+                expired ? 'text-card-ink-3' : 'text-card-teal'
+              }`}
+            >
+              {formatCountdown(remaining)}
+            </span>
+          ) : (
+            <span className="text-[13px] font-medium text-card-ink-2">Set</span>
+          )}
+          <ChevronDown size={14} className="shrink-0 text-card-ink-3" />
+        </span>
       </button>
 
       {/* Announced separately so the countdown itself never spams a screen
@@ -119,32 +120,33 @@ export default function PrepTimerControl({ order, isUpdating, onChange }) {
         <div
           role="menu"
           aria-label="Preparation timer"
-          className="absolute bottom-full left-0 right-0 mb-2 z-20 p-1.5 rounded-xl bg-kds-surface border border-kds-border shadow-[0_10px_30px_rgba(15,23,42,0.16)]"
+          className="absolute bottom-full left-0 right-0 mb-2 z-20 p-1.5 rounded-[14px] bg-card-bg border border-card-line shadow-card-menu"
         >
           {PREP_TIMER_PRESET_MINUTES.map((minutes) => (
             <button
               key={minutes}
               type="button"
               role="menuitem"
-              className="flex items-center gap-2 w-full h-[36px] px-3 rounded-lg text-[14px] font-medium text-kds-text hover:bg-kds-surface-2 transition-colors duration-150"
+              className="flex items-center justify-between w-full h-[38px] px-3 rounded-[10px] text-[14px] font-medium text-card-ink hover:bg-card-veil transition-colors duration-150"
               onClick={() => handleSelect(minutes * 60)}
             >
-              <Timer size={15} className="shrink-0 text-kds-text-3" />
               {minutes} min
+              <span className="text-[13px] tabular-nums text-card-ink-3">
+                {formatCountdown(minutes * 60)}
+              </span>
             </button>
           ))}
 
           {timerActive && (
             <>
-              <div className="my-1 h-px bg-kds-border" />
+              <div className="my-1 mx-3 h-px bg-card-line" />
               <button
                 type="button"
                 role="menuitem"
-                className="flex items-center gap-2 w-full h-[36px] px-3 rounded-lg text-[14px] font-medium text-kds-late hover:bg-kds-late-bg transition-colors duration-150"
+                className="flex items-center w-full h-[38px] px-3 rounded-[10px] text-[14px] font-medium text-card-late hover:bg-card-veil transition-colors duration-150"
                 onClick={() => handleSelect(PREP_TIMER_CLEAR_SECONDS)}
               >
-                <TimerOff size={15} className="shrink-0" />
-                Remove Timer
+                Remove timer
               </button>
             </>
           )}
@@ -155,14 +157,11 @@ export default function PrepTimerControl({ order, isUpdating, onChange }) {
 }
 
 /**
- * Read-only countdown chip for the customer-facing Dine-In card.
+ * Read-only countdown for the customer-facing Dine-In card.
  *
  * Same persisted `prep_auto_ready_at` and same tick as the kitchen control —
  * only the presentation differs, and there is deliberately no way to change or
  * remove the timer from a customer-facing screen.
- *
- * Sized to match the neighbouring status chip so it costs the fixed-height
- * Dine-In card no extra vertical space.
  */
 export function PrepCountdownChip({ order }) {
   const remaining = usePrepCountdown(order?.status, order?.prepAutoReadyAt);
@@ -170,16 +169,20 @@ export function PrepCountdownChip({ order }) {
   if (!hasPrepTimer(order)) return null;
 
   const expired = remaining === 0;
-  const chipClass = expired
-    ? 'bg-kds-surface-3 text-kds-text-2 border-kds-border'
-    : 'bg-kds-cooking-bg text-amber-700 border-amber-200';
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-lg border text-[13px] font-semibold whitespace-nowrap shrink-0 ${chipClass}`}
-    >
-      <Timer size={14} className="shrink-0" />
-      <span className="tabular-nums">Ready in {formatCountdown(remaining)}</span>
+    <span className="inline-flex items-baseline gap-1.5 shrink-0 whitespace-nowrap">
+      <span className="w-px h-3 bg-card-line-2 self-center" aria-hidden="true" />
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-card-ink-3">
+        Ready in
+      </span>
+      <span
+        className={`text-[15px] font-semibold tabular-nums tracking-[-0.02em] ${
+          expired ? 'text-card-ink-3' : 'text-card-teal'
+        }`}
+      >
+        {formatCountdown(remaining)}
+      </span>
     </span>
   );
 }

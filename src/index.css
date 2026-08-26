@@ -48,6 +48,32 @@
   --color-kds-timer-hot: #F97316;
   --color-kds-timer-fire: #EF4444;
 
+  /* ── Order card: refined light ──
+     A quieter neutral ramp and deeper, higher-contrast accents used only as
+     small marks and numerals, never as filled blocks. Scoped to the card
+     subtree so the header, filters and login keep their existing tokens. */
+  --color-card-bg: #FFFFFF;
+  --color-card-veil: #FAFAF9;
+  --color-card-veil-2: #F4F4F2;
+  --color-card-line: #EDEDEA;
+  --color-card-line-2: #E0E0DC;
+  --color-card-ink: #18181B;
+  --color-card-ink-2: #6B6B72;
+  --color-card-ink-3: #A5A5AC;
+  --color-card-new: #3B5BDB;
+  --color-card-cooking: #B07D12;
+  --color-card-ready: #14803C;
+  --color-card-late: #C13525;
+
+  /* Brand accent. Deep enough to stay legible as text on white under kitchen
+     lighting — the lighter stops are for gradient fills only. */
+  --color-card-teal: #0B7F76;
+  --color-card-teal-2: #10A79A;
+  --color-card-teal-3: #14C0B0;
+
+  --shadow-card-rest: 0 1px 2px rgba(24,24,27,0.04), 0 10px 28px -12px rgba(24,24,27,0.12);
+  --shadow-card-menu: 0 2px 6px rgba(24,24,27,0.06), 0 18px 40px -12px rgba(24,24,27,0.22);
+
   /* Typography colors */
   --color-kds-text: #0F172A;
   --color-kds-text-2: #64748B;
@@ -1585,16 +1611,62 @@ ul {
 /* ═══════════════════════════════════════════
    SKELETON LOADING
    ═══════════════════════════════════════════ */
+/* ── Order card: turquoise accent ──
+   One gradient ramp, used in exactly three places: a wash behind the card
+   header, the primary action, and the countdown numerals. The status colours
+   are deliberately untouched — they still have to mean New, Preparing, Ready
+   and Late, and turning them all teal would cost the board its signal. */
+/* The wash carries the bright end of the ramp — it is a 7% tint with no text
+   on it, so brightness costs nothing here. */
+.card-wash {
+  background-image: linear-gradient(
+    180deg,
+    rgba(20, 192, 176, 0.085) 0%,
+    rgba(20, 192, 176, 0.026) 62%,
+    rgba(20, 192, 176, 0) 100%
+  );
+}
+
+/* The primary action uses the deep end instead. A bright turquoise fill only
+   reaches 2.3:1 against a white label — unreadable across a kitchen — so every
+   stop here is dark enough to clear 4.5:1 on its own. */
+.card-cta {
+  background-image: linear-gradient(135deg, #064F49 0%, #0A6E66 55%, #0E8478 100%);
+  box-shadow:
+    0 1px 2px rgba(6, 79, 73, 0.24),
+    0 10px 22px -10px rgba(6, 79, 73, 0.58);
+  transition: background-image 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-cta:hover:not(:disabled) {
+  background-image: linear-gradient(135deg, #053F3A 0%, #085C55 55%, #0C7266 100%);
+  box-shadow:
+    0 1px 2px rgba(6, 79, 73, 0.3),
+    0 12px 26px -10px rgba(6, 79, 73, 0.66);
+}
+
+.card-cta:active:not(:disabled) {
+  transform: scale(0.995);
+}
+
+.card-cta:disabled {
+  box-shadow: none;
+}
+
+/* Matches the loaded order card exactly — same height, radius, hairline and
+   shadow — so the board does not visibly re-flow when tickets arrive. */
 .skeleton-card {
-  background: var(--kds-surface);
-  border-radius: var(--kds-radius-lg);
-  padding: 20px;
+  background: #FFFFFF;
+  border-radius: 18px;
+  height: 400px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  border: 1px solid var(--kds-border);
-  border-left: 4px solid var(--kds-border-2);
-  box-shadow: var(--kds-shadow-card);
+  gap: 16px;
+  border: 1px solid #EDEDEA;
+  box-shadow: 0 1px 2px rgba(24,24,27,0.04), 0 10px 28px -12px rgba(24,24,27,0.12);
 }
 
 .skeleton-line {

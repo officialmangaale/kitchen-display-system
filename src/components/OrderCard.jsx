@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, StickyNote, Utensils, ChefHat, BellRing, Check, Bike, Clock, CircleCheck } from 'lucide-react';
+import { Loader2, Utensils, Bike } from 'lucide-react';
 import TimerBadge, { TimerProgressBar } from './TimerBadge';
 import PrepTimerControl, { PrepCountdownChip } from './PrepTimerControl';
 import OrderItems from './OrderItems';
@@ -17,58 +17,42 @@ function formatClockTime(placedAt) {
     .toLowerCase();
 }
 
-// Primary action styling follows the kitchen workflow, not the card status tint.
-// Always solid: this is the main operational control and a tinted variant read
-// as disabled on the floor.
-const PRIMARY_ACTION_STYLES = {
-  CONFIRMED: {
-    Icon: ChefHat,
-    solid: 'bg-kds-new text-white shadow-[0_4px_14px_rgba(37,99,235,0.24)] hover:bg-blue-700',
-  },
-  PREPARING: {
-    Icon: BellRing,
-    solid: 'bg-kds-cooking text-white shadow-[0_4px_14px_rgba(245,158,11,0.26)] hover:bg-amber-600',
-  },
-  READY: {
-    Icon: Check,
-    solid: 'bg-kds-ready text-white shadow-[0_4px_14px_rgba(22,163,74,0.24)] hover:bg-green-700',
-  },
+// Status is carried by a small mark and a word, never by a filled block. Colour
+// appears in exactly two places on a card — this dot and the countdown — so it
+// stays a signal instead of decoration.
+const STATUS_PRESENTATION = {
+  CONFIRMED: { label: 'New', dot: 'bg-card-new', text: 'text-card-new' },
+  PREPARING: { label: 'Preparing', dot: 'bg-card-cooking', text: 'text-card-cooking' },
+  READY: { label: 'Ready', dot: 'bg-card-ready', text: 'text-card-ready' },
 };
 
-const DEFAULT_PRIMARY_ACTION = {
-  Icon: Check,
-  solid: 'bg-kds-text text-white hover:bg-slate-800',
-};
-
-// Customer-facing status presentation. Derived from the same order.status the
-// kitchen uses — no separate Dine-In state is ever created or stored.
-const DINE_IN_STATUS = {
-  CONFIRMED: {
-    label: 'New',
-    chip: 'bg-kds-new-bg text-kds-new border-blue-200',
-    dot: 'bg-kds-new',
-    accent: 'bg-kds-new',
-  },
-  PREPARING: {
-    label: 'Preparing',
-    chip: 'bg-orange-50 text-amber-700 border-amber-200',
-    dot: 'bg-kds-cooking',
-    accent: 'bg-kds-cooking',
-  },
-  READY: {
-    label: 'Ready',
-    chip: 'bg-kds-ready-bg text-green-700 border-green-200',
-    dot: 'bg-kds-ready',
-    accent: 'bg-kds-ready',
-  },
-};
-
-const DINE_IN_STATUS_FALLBACK = {
+const STATUS_FALLBACK = {
   label: 'Received',
-  chip: 'bg-kds-surface-3 text-kds-text-2 border-kds-border',
-  dot: 'bg-kds-text-3',
-  accent: 'bg-kds-border-2',
+  dot: 'bg-card-ink-3',
+  text: 'text-card-ink-2',
 };
+
+const LATE_PRESENTATION = {
+  label: 'Late',
+  dot: 'bg-card-late',
+  text: 'text-card-late',
+};
+
+/** Shared status mark: a dot and a word, sized for a wall-mounted screen. */
+function StatusMark({ presentation, className = '' }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-2 whitespace-nowrap ${presentation.text} ${className}`}
+    >
+      <span className={`w-[7px] h-[7px] rounded-full shrink-0 ${presentation.dot}`} />
+      {presentation.label}
+    </span>
+  );
+}
+
+/** Uppercase, letterspaced micro-label used for the card's meta lines. */
+const META_CLASS =
+  'text-[10px] font-semibold uppercase tracking-[0.14em] text-card-ink-3';
 
 export default function OrderCard({
   order,
@@ -104,162 +88,119 @@ export default function OrderCard({
 
   if (!order) return null;
 
+  const presentation = STATUS_PRESENTATION[order.status] || STATUS_FALLBACK;
+  const customerName = order.customer_name || order.customerName || null;
+  const orderType = order.table ? `Table ${order.table}` : 'Takeaway';
+
   // Dine-In: read-only customer display — order ID, status, items, quantity.
   if (dineIn) {
-    // Accent always follows the kitchen status, never the late flag, so a late
-    // Preparing ticket still reads as Preparing with Late shown as an extra badge.
-    const presentation = DINE_IN_STATUS[order.status] || DINE_IN_STATUS_FALLBACK;
+    // Every section is a fixed height, so all Dine-In cards render at exactly
+    // the same size no matter how many items an order carries.
     const placedTime = formatClockTime(order.placedAt);
 
     return (
-      // Every section below is a fixed height, so all Dine-In cards render at
-      // exactly the same size no matter how many items an order carries.
       <article
-        className="relative flex flex-col h-[232px] bg-kds-surface rounded-[16px] border border-kds-border shadow-[0_4px_18px_rgba(15,23,42,0.05)] overflow-hidden w-full min-w-0"
+        className="relative flex flex-col h-[232px] bg-card-bg rounded-[18px] border border-card-line shadow-card-rest overflow-hidden w-full min-w-0"
         aria-label={`Order ${displayNumber}, ${presentation.label}${isLate ? ', late' : ''}`}
       >
-        {/* Order ID + time placed */}
-        <div className="shrink-0 flex items-baseline justify-between gap-2 min-w-0 px-5 pt-5 pb-3">
-          <span className="min-w-0 text-[21px] font-bold text-kds-text leading-none tracking-[-0.02em] truncate">
-            <span className="text-kds-text-3">#</span>{displayNumber}
+        {/* Order number + time placed */}
+        <div className="card-wash shrink-0 flex items-baseline justify-between gap-3 min-w-0 px-6 pt-6 pb-3">
+          <span className="min-w-0 text-[30px] font-semibold text-card-ink leading-none tracking-[-0.035em] tabular-nums truncate">
+            {displayNumber}
           </span>
           {placedTime && (
-            <span className="text-[14px] font-medium text-kds-text-3 tabular-nums whitespace-nowrap shrink-0">
+            <span className="text-[13px] font-medium text-card-ink-3 tabular-nums whitespace-nowrap shrink-0">
               {placedTime}
             </span>
           )}
         </div>
 
-        {/* Status — Late is an additional badge, never a replacement */}
-        <div className="shrink-0 flex items-center gap-2 px-5 pb-4 min-w-0">
-          {isLate && (
-            <span className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-lg border border-red-200 bg-kds-late-bg text-kds-late text-[13px] font-semibold whitespace-nowrap shrink-0">
-              <Clock size={14} className="shrink-0" />
-              Late
-            </span>
-          )}
+        {/* Status line. Late is an additional mark, never a replacement. */}
+        <div className="shrink-0 flex items-center gap-3 px-6 pb-4 min-w-0 h-[28px] text-[14px] font-semibold">
+          {isLate && <StatusMark presentation={LATE_PRESENTATION} className="shrink-0" />}
+          <StatusMark presentation={presentation} className="min-w-0" />
 
-          <span
-            className={`inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-lg border text-[13px] font-semibold whitespace-nowrap min-w-0 ${presentation.chip}`}
-          >
-            {order.status === 'READY' ? (
-              <CircleCheck size={14} className="shrink-0" />
-            ) : (
-              <span className={`w-2 h-2 rounded-full shrink-0 ${presentation.dot}`} />
-            )}
-            <span className="truncate">{presentation.label}</span>
-          </span>
-
-          {/* Read-only countdown, same value the kitchen card shows. Sits in
-              this row rather than a row of its own because the Dine-In card is
-              a fixed height and an extra row would clip the accent strip. */}
+          {/* Read-only countdown, same value the kitchen card shows. Shares this
+              row because the card is a fixed height and an extra row would
+              clip the section below it. */}
           <PrepCountdownChip order={order} />
         </div>
 
-        <div className="shrink-0 border-t border-kds-border mx-5" />
+        <div className="shrink-0 border-t border-card-line mx-6" />
 
         <DineInItems items={order.items} />
 
-        {/* Absorbs the remainder so the accent always sits flush at the bottom */}
+        {/* Absorbs the remainder so every card ends at the same height */}
         <div className="flex-1 min-h-0" />
-
-        {/* Subtle status accent along the bottom edge */}
-        <div className={`shrink-0 h-[3px] w-full ${presentation.accent}`} />
       </article>
     );
   }
 
   // Fixed height so every kitchen card in a row aligns regardless of item count.
-  // The flex spacer below absorbs whatever the optional customer strip doesn't use.
-  let cardClass = "relative flex flex-col h-[400px] bg-kds-surface rounded-[16px] border border-kds-border shadow-[0_4px_18px_rgba(15,23,42,0.05)] overflow-hidden w-full min-w-0 ";
-  let topStripClass = "absolute top-0 bottom-0 left-0 w-1 z-10 ";
-  let typeBadgeClass = "inline-flex items-center gap-1.5 self-start h-[24px] px-2.5 rounded-md border text-[10px] font-bold uppercase tracking-[0.06em] ";
-  const headerClass = "shrink-0 flex justify-between items-start gap-3 px-5 pt-5 pb-3 relative ";
+  // The flex spacer below absorbs whatever the sections above don't use.
+  const cardClass =
+    'relative flex flex-col h-[400px] bg-card-bg rounded-[18px] border border-card-line shadow-card-rest overflow-hidden w-full min-w-0 ' +
+    (order.status === 'CONFIRMED' && !isLate ? 'animate-slide-in' : '');
 
-  // Late keeps its workflow accent — red is carried by the timer and Late badge.
-  switch (order.status) {
-    case 'CONFIRMED':
-      cardClass += isLate ? "" : "animate-slide-in ";
-      topStripClass += "bg-kds-new";
-      typeBadgeClass += "bg-kds-new-bg text-kds-new border-blue-200";
-      break;
-    case 'PREPARING':
-      topStripClass += "bg-kds-cooking";
-      typeBadgeClass += "bg-kds-cooking-bg text-amber-700 border-amber-200";
-      break;
-    case 'READY':
-      topStripClass += "bg-kds-ready";
-      typeBadgeClass += "bg-kds-ready-bg text-green-700 border-green-200";
-      break;
-    default:
-      topStripClass += "bg-kds-border-2";
-      typeBadgeClass += "bg-kds-surface-3 text-kds-text-2 border-kds-border";
-  }
-
-  const primaryAction = PRIMARY_ACTION_STYLES[order.status] || DEFAULT_PRIMARY_ACTION;
-  const PrimaryIcon = primaryAction.Icon;
+  const headerPresentation = isLate ? LATE_PRESENTATION : presentation;
 
   return (
     <article className={cardClass} aria-label={`Order ${displayNumber}`}>
-      <div className={topStripClass} />
-
-      {/* Header */}
-      <div className={headerClass}>
-        <div className="flex flex-col gap-2 z-10 ml-1 min-w-0">
-          <span className={typeBadgeClass}>
-            {order.table ? `TABLE ${order.table}` : <><Utensils size={12} className="shrink-0" /> TAKEAWAY</>}
+      {/* Header — the order's identity and its state, nothing else.
+          Customer and table now live on the meta line rather than in a
+          separate tinted strip, which is what keeps the card within its
+          fixed height once a countdown is present. */}
+      {/* A whisper of the brand ramp behind the order's identity. It fades to
+          nothing before the item list, so it tints the card without ever
+          sitting behind text that has to be read quickly. */}
+      <div className="card-wash shrink-0 px-6 pt-5 pb-4">
+        <div className="flex items-center justify-between gap-3 min-w-0 h-[14px]">
+          <span className={`${META_CLASS} min-w-0 flex items-center gap-1.5 truncate`}>
+            {!order.table && <Utensils size={11} className="shrink-0" />}
+            <span className="truncate">
+              {orderType}
+              {customerName ? ` · ${customerName}` : ''}
+            </span>
           </span>
-          <div className="text-[22px] font-bold text-kds-text leading-none tracking-[-0.02em] tabular-nums truncate">
-            <span className="text-kds-text-3">#</span>{displayNumber}
-          </div>
+          <StatusMark
+            presentation={headerPresentation}
+            className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.1em]"
+          />
         </div>
 
-        <div className="z-10 shrink-0">
+        <div className="mt-2.5 flex items-baseline justify-between gap-3 min-w-0">
+          <span className="min-w-0 text-[36px] font-semibold text-card-ink leading-none tracking-[-0.04em] tabular-nums truncate">
+            {displayNumber}
+          </span>
           <TimerBadge
             placedAt={order.placedAt}
             slaMinutes={order.slaMinutes}
             stoppedAt={order.timerStoppedAt}
-            status={order.status}
           />
         </div>
       </div>
 
-      <TimerProgressBar placedAt={order.placedAt} slaMinutes={order.slaMinutes} stoppedAt={order.timerStoppedAt} />
+      <TimerProgressBar
+        placedAt={order.placedAt}
+        slaMinutes={order.slaMinutes}
+        stoppedAt={order.timerStoppedAt}
+      />
 
-      {/* Optional customer strip — one line, so it can never change card height */}
-      {(order.customer_name || order.customerName || order.special_instructions) && (
-        <div className="shrink-0 mx-5 mb-1.5 px-3 py-1.5 rounded-[10px] bg-kds-surface-2 border border-kds-border text-[12px] font-medium flex items-center gap-2 min-w-0">
-          {(order.customer_name || order.customerName) && (
-            <span className="text-kds-text truncate" title={order.customer_name || order.customerName}>
-              <span className="text-kds-text-3 uppercase tracking-[0.06em] text-[10px] font-bold mr-1.5">Cust</span>
-              {order.customer_name || order.customerName}
-            </span>
-          )}
-          {order.special_instructions && (
-            <span className="text-amber-700 truncate" title={order.special_instructions}>
-              <span className="text-kds-text-3 uppercase tracking-[0.06em] text-[10px] font-bold mr-1.5">Note</span>
-              {order.special_instructions}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Fixed two-row viewport; extra items and kitchen notes scroll inside it */}
+      {/* Fixed two-row viewport; extra items, instructions and kitchen notes
+          scroll inside it rather than growing the card. */}
       <OrderItems
         items={order.items}
         tickedItems={tickedItems}
         toggleTick={toggleTick}
         notes={order.notes}
+        instructions={order.special_instructions}
       />
 
       {/* Absorbs the remainder so actions stay pinned across every card */}
       <div className="flex-1 min-h-0" />
 
-      {/* Footer Actions */}
-      <div className="flex flex-col px-5 pt-3 pb-3.5 border-t border-kds-border gap-1.5 shrink-0 mt-auto">
-        {/* Auto-ready countdown. Sits directly above Mark Ready because it is
-            the same decision — when this ticket is done — expressed as a
-            schedule instead of a tap. Renders nothing unless PREPARING. */}
+      {/* Footer actions */}
+      <div className="flex flex-col px-6 pt-3 pb-4 border-t border-card-line gap-1.5 shrink-0 mt-auto">
         <PrepTimerControl
           order={order}
           isUpdating={isTimerUpdating}
@@ -267,34 +208,27 @@ export default function OrderCard({
         />
 
         {order.status === 'READY' && isDelivery && (
-          <div className="flex items-center justify-center gap-2 w-full h-[48px] rounded-xl bg-kds-ready-bg text-green-700 text-[13px] font-semibold border border-green-200">
+          <div className="flex items-center justify-center gap-2 w-full h-[48px] rounded-[12px] bg-card-veil text-card-ready text-[14px] font-semibold">
             <Bike size={16} className="shrink-0" />
             Waiting for rider pickup
           </div>
         )}
+
         {actions?.primary && (
           <button
-            className={`relative flex items-center justify-center gap-2 w-full h-[48px] rounded-xl text-[15px] font-semibold transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed ${primaryAction.solid}`}
+            className="card-cta flex items-center justify-center w-full h-[48px] rounded-[12px] text-white text-[15px] font-semibold tracking-[-0.01em] disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => onStatusChange(order.id, actions.primary.next)}
             disabled={isUpdating}
           >
-            {isUpdating ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <>
-                <PrimaryIcon size={18} className="shrink-0" />
-                {actions.primary.label}
-              </>
-            )}
+            {isUpdating ? <Loader2 size={18} className="animate-spin" /> : actions.primary.label}
           </button>
         )}
 
         <button
-          className="flex items-center justify-center gap-2 w-full h-[32px] rounded-[10px] bg-transparent text-kds-text-2 text-[14px] font-medium hover:bg-kds-surface-2 hover:text-kds-text transition-colors duration-150 disabled:opacity-60"
+          className="flex items-center justify-center w-full h-[30px] rounded-[10px] text-card-ink-2 text-[13px] font-medium hover:bg-card-veil hover:text-card-ink transition-colors duration-150 disabled:opacity-50"
           onClick={() => onAddNote(order)}
           disabled={isUpdating}
         >
-          <StickyNote size={15} className="shrink-0" />
           Add Note
         </button>
       </div>
