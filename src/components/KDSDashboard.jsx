@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useClock } from '../hooks/useClock';
 import { useToast } from '../hooks/useToast';
 import { useFullscreen } from '../hooks/useFullscreen';
 import { useKDSOrders } from '../hooks/useKDSOrders';
 import { useKDSStream } from '../hooks/useKDSStream';
+import { useSmartAutoScroll } from '../hooks/useSmartAutoScroll';
 import KDSHeader from './KDSHeader';
 import StatusFilter from './StatusFilter';
 import StationFilter from './StationFilter';
@@ -16,6 +17,7 @@ import ErrorBanner from './ErrorBanner';
 import ToastHost from './ToastHost';
 import AddNoteModal from './AddNoteModal';
 import FullscreenTip from './FullscreenTip';
+import AutoScrollIndicator from './AutoScrollIndicator';
 import { isActiveKDSStatus, isOrderLate } from '../utils/orderUtils';
 import { playOrderAlert, unlockAudio } from '../utils/sound';
 import { OfflineBanner } from './ConnectionStatus';
@@ -41,6 +43,11 @@ export default function KDSDashboard({ token, onLogout, scope }) {
   const [counterName, setCounterName] = useState(
     scope.counterId ? `Counter ${scope.counterId}` : 'All Counters',
   );
+
+  // The board's one scroller and the grid inside it. Auto-scroll measures these
+  // rather than assuming a card size or a column count.
+  const boardScrollRef = useRef(null);
+  const boardGridRef = useRef(null);
 
   useEffect(() => {
     if (!scope.counterId) return undefined;
@@ -325,6 +332,19 @@ export default function KDSDashboard({ token, onLogout, scope }) {
       return timeA - timeB;
     });
 
+  // Cycle the board through tickets that do not fit the screen. It measures the
+  // grid it is given, so it stays off entirely until there is something below
+  // the fold, and stops again the moment the queue shrinks back to one screen.
+  // The signature is how it learns a ticket arrived: the sort order above is
+  // untouched, the board simply holds still long enough for the new card to be
+  // read alongside the existing toast and alert tone.
+  const autoScrollStore = useSmartAutoScroll({
+    containerRef: boardScrollRef,
+    contentRef: boardGridRef,
+    enabled: !loading && !noteModal && visibleOrders.length > 1,
+    signature: visibleOrders.map((order) => order.id).join(','),
+  });
+
   return (
     <div className={`h-screen h-[100dvh] overflow-hidden bg-kds-bg text-kds-text flex flex-col pt-[120px] ${isTvMode ? 'tv-mode' : ''}`}>
       <OfflineBanner status={connectionStatus} />
@@ -362,6 +382,7 @@ export default function KDSDashboard({ token, onLogout, scope }) {
           </div>
         </div>
         <div className="flex items-center gap-3 xl:gap-5 shrink-0">
+          <AutoScrollIndicator store={autoScrollStore} />
           <span className="text-[13px] font-medium text-kds-text-2 whitespace-nowrap hidden lg:block">
             Orders today: <span className="font-semibold text-kds-text tabular-nums">{orders.length}</span>
           </span>
@@ -370,7 +391,10 @@ export default function KDSDashboard({ token, onLogout, scope }) {
         </div>
       </div>
 
-      <main className="kds-order-scroll flex-1 min-h-0 p-4 sm:p-6 xl:py-7 xl:px-8 overflow-x-hidden overflow-y-auto overscroll-contain">
+      <main
+        ref={boardScrollRef}
+        className="kds-order-scroll flex-1 min-h-0 p-4 sm:p-6 xl:py-7 xl:px-8 overflow-x-hidden overflow-y-auto overscroll-contain"
+      >
         <FullscreenTip isFullscreen={isFullscreen} onToggle={toggleFullscreen} />
         
         <ErrorBanner error={error} onRetry={() => loadOrders()} />
@@ -381,6 +405,7 @@ export default function KDSDashboard({ token, onLogout, scope }) {
           <EmptyKitchen connectionStatus={connectionStatus} />
         ) : (
           <div
+            ref={boardGridRef}
             className={`grid auto-rows-max items-start ${
               dineInView
                 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-[22px]'

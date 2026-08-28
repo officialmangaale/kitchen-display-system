@@ -72,6 +72,48 @@ countdown beside the status, with no way to change it. Both share an existing
 fixed-height row rather than adding one, so every card stays exactly the same
 size whether or not a timer is running.
 
+## Smart Auto-Scroll
+
+When the active queue is taller than the board, the order area cycles through it
+on its own so nothing stays hidden below the fold. When the queue fits, the
+board is completely stationary — there is no idle drift, no timer and no
+indicator.
+
+```text
+pause 5s -> smooth step to the next row -> pause 5s -> ... -> bottom
+bottom held 5.5s -> smooth return to the top -> pause 5s -> repeat
+```
+
+Steps are row-aligned rather than a fixed pixel distance: the row tops are
+measured from the rendered grid, so 2, 3, 4 or 5 columns and either card height
+behave the same, and the board never comes to rest with a card sliced across the
+top or its buttons cut off. A step lasts 600–1000ms, scaled to its distance;
+the return to the top is longer and never a jump.
+
+The kitchen always wins. A wheel, a drag, a touch, a keypress or a tap on any
+order action pauses the cycle immediately — cancelling a step mid-flight rather
+than pulling the card out from under a hand — and it resumes 10 seconds after
+the last interaction, only if the board still overflows. Hovering a card with a
+moving pointer, or leaving a prep-timer menu open, holds it for as long as that
+lasts. An arriving ticket holds the board still for 5 seconds so the existing
+toast and alert tone can be read, without cutting an in-flight step short and
+without changing the sort order. A hidden tab runs nothing at all.
+
+Auto-scroll is presentation only. It adds no request, no subscription and no
+per-card timer, and it never re-renders an order card: the cycle lives in refs
+and publishes its state to one small header indicator (`Auto view`) through an
+external store. Preparation countdowns keep ticking off their persisted
+`prep_auto_ready_at` straight through a scroll, because no card is unmounted,
+remounted or re-keyed to make the board move.
+
+`utils/autoScroll.js` holds the geometry and timing as pure functions,
+`utils/autoScrollEngine.js` the cycle itself with every clock injected, and
+`hooks/useSmartAutoScroll.js` is one mount's worth of listeners around it —
+one timer and one animation frame outstanding at any moment, all released on
+unmount. The engine is covered by a simulated board in
+`utils/autoScrollEngine.test.js`, including a 30-minute run that asserts it
+never accumulates a second timer.
+
 ## Verification
 
 ```bash

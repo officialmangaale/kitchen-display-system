@@ -315,6 +315,16 @@ ul {
   background-color: #94A3B8;
 }
 
+/* Auto-scroll indicator: a slow breath, so the header reads as alive without
+   competing with the board for a cook's attention. */
+.kds-auto-dot {
+  animation: dotPulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kds-auto-dot { animation: none; }
+}
+
 
 /* ═══════════════════════════════════════════
    KEYFRAME ANIMATIONS
